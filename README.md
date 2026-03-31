@@ -12,7 +12,7 @@ Built by `swiiish.x / Olawale`.
 - Persistent high score, credits, and unlocked skins
 - Simple sound effects and visual polish
 - Built-in playtest feedback links for friends
-- Static-file setup that can be deployed easily on GitHub Pages
+- Static-file setup that can be deployed easily on GitHub Pages or Netlify
 
 ## Files
 
@@ -34,6 +34,7 @@ You can open `index.html` directly in a browser, or serve the folder with any si
 Live URL:
 
 - `https://walekadir.github.io/squaredodger/`
+- `https://jidsgame.netlify.app/`
 
 ## Deploy To Netlify
 
