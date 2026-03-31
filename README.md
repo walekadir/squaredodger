@@ -61,4 +61,4 @@ This repo includes a `netlify.toml`, so Netlify will use the right static publis
 
 ## Share Notes
 
-The page already includes Open Graph and Twitter metadata plus a custom preview card in `social-preview.svg`.
+The page already includes Open Graph and Twitter metadata plus a custom preview card in `social-preview.svg` and a share-friendly PNG fallback in `social-preview.png`.
