@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Square Dodger is a fast arcade survival game by Olawale. Dodge falling blocks, earn credits, unlock skins, and chase a higher score on mobile or desktop.">
+    <meta name="theme-color" content="#08131c">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Square Dodger">
+    <meta property="og:description" content="Dodge falling blocks, earn credits, unlock skins, and chase a higher score. Game built by swiiish.x / Olawale.">
+    <meta property="og:site_name" content="Square Dodger">
+    <meta property="og:image" content="social-preview.svg">
+    <meta property="og:image:alt" content="Square Dodger arcade survival game preview card">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Square Dodger">
+    <meta name="twitter:description" content="Arcade survival with progression, skins, and mobile-friendly controls.">
+    <meta name="twitter:image" content="social-preview.svg">
+    <title>Square Dodger | Arcade Survival by Olawale</title>
+    <style>
+        :root {
+            --bg: #08131c;
+            --panel: rgba(8, 19, 28, 0.82);
+            --panel-border: rgba(138, 193, 224, 0.28);
+            --text: #f5fbff;
+            --muted: #9eb8c7;
+            --accent: #6cabdd;
+            --danger: #ff6b57;
+            --success: #7ed7a6;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 16px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            color: var(--text);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(108, 172, 221, 0.2), transparent 35%),
+                linear-gradient(180deg, #102634 0%, #07111a 100%);
+        }
+
+        #game-container {
+            width: min(100%, 460px);
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .branding h1 {
+            margin: 0;
+            font-size: 1.35rem;
+            letter-spacing: 0.04em;
+        }
+
+        .branding p {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .scoreboard {
+            text-align: right;
+            display: grid;
+            gap: 4px;
+        }
+
+        .scoreboard strong {
+            display: block;
+            font-size: 1.4rem;
+        }
+
+        .scoreboard span {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .currency {
+            color: #ffd166;
+        }
+
+        .canvas-wrap {
+            position: relative;
+            overflow: visible;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background: #000;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(180deg, rgba(5, 15, 23, 0.55), rgba(5, 15, 23, 0.88));
+            border-radius: 18px;
+            text-align: center;
+            overflow-y: auto;
+        }
+
+        .overlay[hidden] {
+            display: none;
+        }
+
+        .panel {
+            max-width: 320px;
+        }
+
+        .panel h2 {
+            margin: 0 0 10px;
+            font-size: 1.7rem;
+        }
+
+        .panel p {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .panel .accent {
+            color: var(--accent);
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 12px 18px;
+            font-size: 0.96rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--accent);
+            color: #041018;
+            min-width: 148px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        button:hover,
+        button:focus-visible {
+            transform: translateY(-1px);
+        }
+
+        .secondary-button {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .feature-list {
+            margin: 0 0 16px;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            gap: 8px;
+            text-align: left;
+        }
+
+        .feature-list li {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 0.92rem;
+        }
+
+        .feature-list li span {
+            color: var(--muted);
+            display: block;
+            margin-top: 2px;
+        }
+
+        .meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .lower-panels {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 18px;
+            padding: 14px;
+        }
+
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 1rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .card-header h3 {
+            margin: 0;
+        }
+
+        .toggle-btn {
+            min-width: 0;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mission-title {
+            font-weight: 700;
+        }
+
+        .mission-copy,
+        .card small {
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .skins-grid {
+            display: grid;
+            gap: 8px;
+        }
+
+        .skin-card {
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .skin-card.active {
+            border-color: rgba(108, 172, 221, 0.7);
+            box-shadow: inset 0 0 0 1px rgba(108, 172, 221, 0.2);
+        }
+
+        .skin-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .skin-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.15);
+        }
+
+        .skin-meta {
+            flex: 1;
+        }
+
+        .skin-meta strong {
+            display: block;
+            font-size: 0.94rem;
+        }
+
+        .skin-meta span {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .skin-card button {
+            width: 100%;
+            min-width: 0;
+            padding: 10px 12px;
+            font-size: 0.86rem;
+        }
+
+        .credit {
+            text-align: center;
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: 0.84rem;
+        }
+
+        .credit a {
+            color: var(--text);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+        }
+
+        .is-collapsed .card-content {
+            display: none;
+        }
+
+        .controls {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .control-btn {
+            min-width: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 14px 10px;
+        }
+
+        .control-btn.action {
+            background: rgba(126, 215, 166, 0.15);
+            border-color: rgba(126, 215, 166, 0.28);
+        }
+
+        @media (max-width: 700px) {
+            body {
+                align-items: flex-start;
+                padding: 12px;
+            }
+
+            #game-container {
+                padding: 14px;
+                border-radius: 20px;
+            }
+
+            .hud {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .scoreboard {
+                text-align: left;
+            }
+
+            .branding h1 {
+                font-size: 1.15rem;
+            }
+
+            .branding p,
+            .scoreboard span,
+            .meta,
+            .mission-copy,
+            .card small {
+                font-size: 0.82rem;
+            }
+
+            .scoreboard strong {
+                font-size: 1.2rem;
+            }
+
+            .canvas-wrap {
+                display: flex;
+                justify-content: center;
+            }
+
+            canvas {
+                width: min(100%, 292px);
+            }
+
+            .overlay {
+                padding: 14px;
+            }
+
+            .panel {
+                max-width: 100%;
+            }
+
+            .panel h2 {
+                font-size: 1.35rem;
+            }
+
+            .panel p {
+                font-size: 0.9rem;
+                margin-bottom: 10px;
+            }
+
+            .feature-list {
+                gap: 6px;
+                margin-bottom: 12px;
+            }
+
+            .feature-list li {
+                padding: 8px 10px;
+                font-size: 0.86rem;
+            }
+
+            .button-row {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .button-row button {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                margin-top: 10px;
+            }
+
+            .lower-panels {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            .card {
+                padding: 12px;
+                border-radius: 16px;
+            }
+
+            .card-header {
+                margin-bottom: 0;
+            }
+
+            .card h3 {
+                font-size: 0.92rem;
+            }
+
+            .mission-title {
+                font-size: 0.92rem;
+            }
+
+            .skins-grid {
+                gap: 6px;
+            }
+
+            .skin-card {
+                padding: 8px;
+                gap: 6px;
+            }
+
+            .skin-meta strong {
+                font-size: 0.88rem;
+            }
+
+            .skin-meta span,
+            .skin-card button {
+                font-size: 0.78rem;
+            }
+
+            .credit {
+                margin-top: 12px;
+                font-size: 0.78rem;
+            }
+
+            .controls {
+                display: grid;
+                position: sticky;
+                bottom: 8px;
+                background: rgba(8, 19, 28, 0.9);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 18px;
+                padding: 8px;
+                backdrop-filter: blur(8px);
+                margin-top: 12px;
+            }
+
+            .control-btn {
+                padding: 16px 10px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-height: 760px) {
+            body {
+                padding-top: 10px;
+                padding-bottom: 18px;
+            }
+
+            .overlay {
+                align-items: flex-start;
+                padding-top: 18px;
+                padding-bottom: 18px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            canvas {
+                width: min(100%, 270px);
+            }
+
+            .feature-list {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div class="hud">
+            <div class="branding">
+                <h1>Square Dodger</h1>
+                <p>Dodge longer, score higher, survive the rush.</p>
+            </div>
+            <div class="scoreboard">
+                <strong id="score">0</strong>
+                <span id="best-score">Best: 0</span>
+                <span id="coins" class="currency">Credits: 0</span>
+            </div>
+        </div>
+
+        <div class="canvas-wrap">
+            <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+            <div id="overlay" class="overlay">
+                <div class="panel">
+                    <h2 id="overlay-title">Ready to dodge?</h2>
+                    <p id="overlay-message">
+                        Use <span class="accent">Left</span> and <span class="accent">Right</span> to move,
+                        then <span class="accent">Space</span> or <span class="accent">Up</span> to jump.
+                    </p>
+                    <ul id="menu-features" class="feature-list">
+                        <li>
+                            Smooth arcade loop
+                            <span>Difficulty ramps while your run stays readable.</span>
+                        </li>
+                        <li>
+                            Persistent progression
+                            <span>Earn credits every run and unlock new player looks.</span>
+                        </li>
+                        <li>
+                            Mobile-ready controls
+                            <span>Playable on touch devices without extra setup.</span>
+                        </li>
+                    </ul>
+                    <div class="button-row">
+                        <button id="action-button">Start Run</button>
+                        <button id="mute-button" class="secondary-button">Sound On</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="meta">
+            <span id="status-text">Press start to begin.</span>
+            <span id="difficulty-text">Difficulty: Rookie</span>
+        </div>
+
+        <div class="lower-panels">
+            <section class="card" data-collapsible-card>
+                <div class="card-header">
+                    <h3>Live Goal</h3>
+                    <button class="toggle-btn" type="button" data-toggle-panel>Hide</button>
+                </div>
+                <div class="card-content">
+                    <div class="mission-title" id="mission-title">Warm-up Run</div>
+                    <div class="mission-copy" id="mission-copy">Score 12 in a single run to prove the loop has staying power.</div>
+                </div>
+            </section>
+
+            <section class="card" data-collapsible-card>
+                <div class="card-header">
+                    <h3>Skins</h3>
+                    <button class="toggle-btn" type="button" data-toggle-panel>Hide</button>
+                </div>
+                <div class="card-content">
+                    <div id="skins-grid" class="skins-grid"></div>
+                    <small>Unlocked looks are saved locally so your players keep progression between sessions.</small>
+                </div>
+            </section>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" data-control="left">Left</button>
+            <button class="control-btn action" data-control="jump">Jump</button>
+            <button class="control-btn" data-control="right">Right</button>
+        </div>
+
+        <div class="credit">
+            Game built by <a href="https://x.com/swiiish.x" target="_blank" rel="noreferrer">swiiish.x</a> / Olawale
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
