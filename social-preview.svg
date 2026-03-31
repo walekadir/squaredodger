@@ -1,13 +1,17 @@
 <svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="600" y1="0" x2="600" y2="630" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#143247"/>
+      <stop stop-color="#17374B"/>
       <stop offset="1" stop-color="#07111A"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(248 70) rotate(49.7636) scale(495.099 755.456)">
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(240 62) rotate(49.7636) scale(495.099 755.456)">
       <stop stop-color="#6CABDD" stop-opacity="0.36"/>
       <stop offset="1" stop-color="#6CABDD" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="panel" x1="836" y1="136" x2="836" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D1B26"/>
+      <stop offset="1" stop-color="#0A131B"/>
+    </linearGradient>
     <filter id="blur" x="0" y="0" width="1200" height="630" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="40"/>
     </filter>
@@ -33,10 +37,10 @@
 
   <rect x="62" y="54" width="1076" height="522" rx="36" fill="rgba(8,19,28,0.42)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
 
-  <text x="110" y="154" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="26" letter-spacing="4">ARCADE SURVIVAL</text>
-  <text x="110" y="252" fill="#F5FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="84" font-weight="700">Square Dodger</text>
-  <text x="110" y="312" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="32">Dodge falling blocks, earn credits, unlock skins.</text>
-  <text x="110" y="356" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="32">Built for mobile and desktop runs.</text>
+  <text x="110" y="146" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="24" letter-spacing="5">FAST ARCADE SURVIVAL</text>
+  <text x="110" y="246" fill="#F5FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="86" font-weight="700">Square Dodger</text>
+  <text x="110" y="306" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="32">Dodge falling blocks. Unlock skins. Chase your best run.</text>
+  <text x="110" y="350" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="32">Built for clean mobile and desktop playtests.</text>
 
   <g>
     <rect x="110" y="410" width="208" height="64" rx="32" fill="#6CABDD"/>
@@ -44,12 +48,12 @@
   </g>
 
   <g>
-    <rect x="346" y="410" width="204" height="64" rx="32" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
-    <text x="386" y="451" fill="#F5FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Beat the rush</text>
+    <rect x="346" y="410" width="228" height="64" rx="32" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
+    <text x="386" y="451" fill="#F5FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Send feedback</text>
   </g>
 
   <g>
-    <rect x="820" y="136" width="240" height="320" rx="28" fill="#09141D" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+    <rect x="820" y="136" width="240" height="320" rx="28" fill="url(#panel)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
     <rect x="850" y="166" width="180" height="250" rx="18" fill="#0C1D29" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
 
     <g opacity="0.16">
@@ -63,6 +67,11 @@
     <rect x="902" y="224" width="52" height="52" rx="6" fill="#FF7A59"/>
     <rect x="974" y="280" width="38" height="38" rx="5" fill="#DA291C"/>
     <rect x="870" y="304" width="42" height="42" rx="5" fill="#FF8B7A"/>
+  </g>
+
+  <g>
+    <rect x="820" y="490" width="240" height="54" rx="18" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+    <text x="850" y="524" fill="#F5FBFF" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Mobile-friendly controls</text>
   </g>
 
   <text x="110" y="536" fill="#9EB8C7" font-family="Segoe UI, Arial, sans-serif" font-size="24">Game built by swiiish.x / Olawale</text>

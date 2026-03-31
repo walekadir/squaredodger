@@ -11,6 +11,7 @@ Built by `swiiish.x / Olawale`.
 - Mobile-friendly touch controls
 - Persistent high score, credits, and unlocked skins
 - Simple sound effects and visual polish
+- Built-in playtest feedback links for friends
 - Static-file setup that can be deployed easily on GitHub Pages
 
 ## Files
@@ -30,6 +31,20 @@ You can open `index.html` directly in a browser, or serve the folder with any si
 4. Choose the `main` branch and the `/ (root)` folder, then save.
 5. GitHub will publish the site as a static page with no build command needed.
 
+Live URL:
+
+- `https://walekadir.github.io/squaredodger/`
+
+## Deploy To Netlify
+
+1. Log in to Netlify and choose `Add new site` > `Import an existing project`.
+2. Select GitHub and connect the `walekadir/squaredodger` repository.
+3. Netlify should detect it as a static site automatically.
+4. Keep the publish directory as `.` and leave the build command empty.
+5. Click deploy.
+
+This repo includes a `netlify.toml`, so Netlify will use the right static publish settings automatically.
+
 ## Controls
 
 ### Desktop
@@ -46,4 +61,4 @@ You can open `index.html` directly in a browser, or serve the folder with any si
 
 ## Share Notes
 
-For richer link previews later, add a public preview image and then connect it to the page metadata with an `og:image` tag.
+The page already includes Open Graph and Twitter metadata plus a custom preview card in `social-preview.svg`.

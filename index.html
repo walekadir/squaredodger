@@ -5,15 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Square Dodger is a fast arcade survival game by Olawale. Dodge falling blocks, earn credits, unlock skins, and chase a higher score on mobile or desktop.">
     <meta name="theme-color" content="#08131c">
+    <link rel="canonical" href="https://walekadir.github.io/squaredodger/">
     <meta property="og:type" content="website">
     <meta property="og:title" content="Square Dodger">
-    <meta property="og:description" content="Dodge falling blocks, earn credits, unlock skins, and chase a higher score. Game built by swiiish.x / Olawale.">
+    <meta property="og:description" content="Fast arcade survival for mobile and desktop. Dodge falling blocks, unlock skins, and send feedback after your run.">
     <meta property="og:site_name" content="Square Dodger">
+    <meta property="og:url" content="https://walekadir.github.io/squaredodger/">
     <meta property="og:image" content="social-preview.svg">
     <meta property="og:image:alt" content="Square Dodger arcade survival game preview card">
-    <meta name="twitter:card" content="summary">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Square Dodger">
-    <meta name="twitter:description" content="Arcade survival with progression, skins, and mobile-friendly controls.">
+    <meta name="twitter:description" content="Arcade survival with progression, skins, mobile-friendly controls, and easy playtest feedback links.">
     <meta name="twitter:image" content="social-preview.svg">
     <title>Square Dodger | Arcade Survival by Olawale</title>
     <style>
@@ -220,6 +224,13 @@
             margin-top: 14px;
         }
 
+        .support-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
         .card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -261,6 +272,12 @@
         .card small {
             color: var(--muted);
             line-height: 1.45;
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
         }
 
         .skins-grid {
@@ -315,6 +332,50 @@
             min-width: 0;
             padding: 10px 12px;
             font-size: 0.86rem;
+        }
+
+        .feedback-actions,
+        .share-actions {
+            display: grid;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .feedback-link {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .feedback-link:hover,
+        .feedback-link:focus-visible {
+            transform: translateY(-1px);
+            border-color: rgba(108, 172, 221, 0.5);
+        }
+
+        .feedback-link span {
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .share-url {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text);
+            font-size: 0.84rem;
+            overflow-wrap: anywhere;
         }
 
         .credit {
@@ -446,6 +507,12 @@
             }
 
             .lower-panels {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                margin-top: 10px;
+            }
+
+            .support-panels {
                 grid-template-columns: 1fr;
                 gap: 10px;
                 margin-top: 10px;
@@ -605,6 +672,39 @@
                     <div id="skins-grid" class="skins-grid"></div>
                     <small>Unlocked looks are saved locally so your players keep progression between sessions.</small>
                 </div>
+            </section>
+        </div>
+
+        <div class="support-panels">
+            <section class="card">
+                <h3>Playtest Feedback</h3>
+                <p>Send quick notes after a run so I can tighten the difficulty, controls, and feel before the wider drop.</p>
+                <div class="feedback-actions">
+                    <a class="feedback-link" href="mailto:walekadir@gmail.com?subject=Square%20Dodger%20Playtest%20Feedback&body=Device%3A%0ABrowser%3A%0AScore%3A%0AWhat%20felt%20good%3F%0AWhat%20felt%20off%3F%0A">
+                        Email feedback
+                        <span>Best for detailed notes</span>
+                    </a>
+                    <a class="feedback-link" href="https://github.com/walekadir/squaredodger/issues/new?title=Playtest%20feedback%3A%20&body=Device%3A%0ABrowser%3A%0AScore%3A%0AWhat%20felt%20good%3F%0AWhat%20felt%20off%3F%0A" target="_blank" rel="noreferrer">
+                        Open an issue
+                        <span>Great for bug reports</span>
+                    </a>
+                    <a class="feedback-link" href="https://twitter.com/intent/tweet?text=I%20just%20played%20Square%20Dodger%20-%20fast%20little%20arcade%20survival.%20Try%20it%20here%3A%20https%3A%2F%2Fwalekadir.github.io%2Fsquaredodger%2F" target="_blank" rel="noreferrer">
+                        Share on X
+                        <span>Easy reactions and reposts</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>Share This Build</h3>
+                <p>Send the link below to friends. The preview card is now tuned for cleaner shares on social and chat apps.</p>
+                <div class="share-actions">
+                    <a class="feedback-link" href="https://walekadir.github.io/squaredodger/" target="_blank" rel="noreferrer">
+                        Open live build
+                        <span>GitHub Pages version</span>
+                    </a>
+                </div>
+                <div class="share-url">https://walekadir.github.io/squaredodger/</div>
             </section>
         </div>
 
