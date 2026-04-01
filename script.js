@@ -791,16 +791,47 @@ function burst(x, y, count, color, force) {
 
 function drawBackground() {
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#163a4d');
-    gradient.addColorStop(1, '#061019');
+    gradient.addColorStop(0, '#173f54');
+    gradient.addColorStop(0.45, '#0b2230');
+    gradient.addColorStop(1, '#040b12');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-    for (let index = 0; index < 14; index += 1) {
-        const y = ((index * 40) + game.elapsed * 60) % (canvas.height + 40);
+    const halo = ctx.createRadialGradient(
+        canvas.width * 0.5,
+        canvas.height * 0.18,
+        18,
+        canvas.width * 0.5,
+        canvas.height * 0.18,
+        canvas.width * 0.7
+    );
+    halo.addColorStop(0, 'rgba(121, 211, 242, 0.22)');
+    halo.addColorStop(1, 'rgba(121, 211, 242, 0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const floorGlow = ctx.createLinearGradient(0, canvas.height * 0.78, 0, canvas.height);
+    floorGlow.addColorStop(0, 'rgba(255, 209, 102, 0)');
+    floorGlow.addColorStop(1, 'rgba(255, 209, 102, 0.12)');
+    ctx.fillStyle = floorGlow;
+    ctx.fillRect(0, canvas.height * 0.78, canvas.width, canvas.height * 0.22);
+
+    for (let index = 0; index < 16; index += 1) {
+        const y = ((index * 38) + game.elapsed * 72) % (canvas.height + 40);
+        const alpha = 0.03 + ((index % 4) * 0.012);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
         ctx.fillRect(0, y, canvas.width, 2);
     }
+
+    for (let index = 0; index < 10; index += 1) {
+        const x = ((index * 52) + Math.sin(game.elapsed * 0.4 + index) * 14 + game.elapsed * 12) % (canvas.width + 60);
+        const y = ((index * 66) + game.elapsed * 28) % (canvas.height + 80);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.07)';
+        ctx.fillRect(x - 1, y, 2, 2);
+    }
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.fillRect(0, physics.floor, canvas.width, 3);
 
     if (game.flashAlpha > 0) {
         ctx.fillStyle = `rgba(255, 255, 255, ${game.flashAlpha})`;
@@ -816,39 +847,71 @@ function drawPlayer() {
     const offsetY = (player.size - drawHeight) / 2;
     const eyeHeight = player.blinkDuration > 0 ? drawHeight * 0.04 : drawHeight * 0.16;
     const eyeY = player.y + offsetY + drawHeight * 0.26;
+    const playerX = player.x + offsetX;
+    const playerY = player.y + offsetY;
+    const gradient = ctx.createLinearGradient(playerX, playerY, playerX + drawWidth, playerY + drawHeight);
+    gradient.addColorStop(0, skin.accent);
+    gradient.addColorStop(0.55, skin.color);
+    gradient.addColorStop(1, shadeColor(skin.color, -24));
 
     ctx.save();
-    ctx.fillStyle = skin.color;
-    ctx.shadowBlur = player.powerJumpActive ? 28 : 18;
+    ctx.fillStyle = gradient;
+    ctx.shadowBlur = player.powerJumpActive ? 34 : 22;
     ctx.shadowColor = player.powerJumpActive ? '#9cf6c9' : `${skin.color}aa`;
-    ctx.fillRect(player.x + offsetX, player.y + offsetY, drawWidth, drawHeight);
+    ctx.fillRect(playerX, playerY, drawWidth, drawHeight);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+    ctx.fillRect(playerX + drawWidth * 0.12, playerY + drawHeight * 0.1, drawWidth * 0.18, drawHeight * 0.54);
 
     ctx.fillStyle = skin.accent;
-    ctx.fillRect(player.x + offsetX + drawWidth * 0.22, eyeY, drawWidth * 0.16, eyeHeight);
-    ctx.fillRect(player.x + offsetX + drawWidth * 0.62, eyeY, drawWidth * 0.16, eyeHeight);
+    ctx.fillRect(playerX + drawWidth * 0.22, eyeY, drawWidth * 0.16, eyeHeight);
+    ctx.fillRect(playerX + drawWidth * 0.62, eyeY, drawWidth * 0.16, eyeHeight);
+
+    ctx.fillStyle = 'rgba(4, 16, 24, 0.35)';
+    ctx.fillRect(playerX + drawWidth * 0.3, playerY + drawHeight * 0.72, drawWidth * 0.38, Math.max(2, drawHeight * 0.08));
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(playerX + 1, playerY + 1, drawWidth - 2, drawHeight - 2);
 
     if (player.powerJumpActive) {
         ctx.strokeStyle = '#d8fff0';
         ctx.lineWidth = 3;
-        ctx.strokeRect(player.x + offsetX - 4, player.y + offsetY - 4, drawWidth + 8, drawHeight + 8);
+        ctx.strokeRect(playerX - 4, playerY - 4, drawWidth + 8, drawHeight + 8);
+
+        ctx.strokeStyle = 'rgba(216, 255, 240, 0.32)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(playerX - 9, playerY - 9, drawWidth + 18, drawHeight + 18);
     }
     ctx.restore();
 }
 
 function drawEnemies() {
     enemies.forEach((enemy) => {
+        const pulse = 0.85 + Math.sin(game.elapsed * 4 + enemy.wobble) * 0.15;
+        const size = enemy.size;
+        const gradient = ctx.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
+        gradient.addColorStop(0, '#ffd0c2');
+        gradient.addColorStop(0.35, enemy.color);
+        gradient.addColorStop(1, shadeColor(enemy.color, -30));
+
         ctx.save();
-        ctx.translate(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2);
+        ctx.translate(enemy.x + size / 2, enemy.y + size / 2);
         ctx.rotate((enemy.y / canvas.height) * enemy.spin * 6);
-        ctx.fillStyle = enemy.color;
-        ctx.fillRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
+        ctx.fillStyle = gradient;
+        ctx.shadowBlur = 16 + pulse * 10;
+        ctx.shadowColor = `${enemy.color}aa`;
+        ctx.fillRect(-size / 2, -size / 2, size, size);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+        ctx.fillRect(-size * 0.28, -size * 0.3, size * 0.2, size * 0.58);
 
         ctx.strokeStyle = enemy.label % 2 === 0 ? '#ffd7a3' : '#ffb8b0';
         ctx.lineWidth = 2;
-        ctx.strokeRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
 
         ctx.fillStyle = '#fff7ea';
-        ctx.font = `bold ${Math.max(12, enemy.size * 0.42)}px Segoe UI`;
+        ctx.font = `bold ${Math.max(12, size * 0.42)}px Segoe UI`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(String(enemy.label), 0, 1);
@@ -861,6 +924,8 @@ function drawParticles() {
         ctx.save();
         ctx.globalAlpha = particle.alpha;
         ctx.fillStyle = particle.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = particle.color;
         ctx.fillRect(particle.x, particle.y, 4, 4);
         ctx.restore();
     });
@@ -870,8 +935,15 @@ function drawRunInfo() {
     if (game.state !== 'running') return;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.fillRect(12, 12, 196, 64);
+    const panelGradient = ctx.createLinearGradient(12, 12, 208, 76);
+    panelGradient.addColorStop(0, 'rgba(5, 15, 23, 0.84)');
+    panelGradient.addColorStop(1, 'rgba(20, 54, 72, 0.68)');
+    ctx.fillStyle = panelGradient;
+    ctx.fillRect(12, 12, 206, 68);
+    ctx.strokeStyle = 'rgba(121, 211, 242, 0.24)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(12.75, 12.75, 204.5, 66.5);
+
     ctx.fillStyle = '#f5fbff';
     ctx.font = 'bold 14px Segoe UI';
     ctx.fillText(`Combo ${game.combo}`, 24, 34);
@@ -894,11 +966,11 @@ function drawCelebration() {
     ctx.save();
     ctx.translate(canvas.width / 2, canvas.height * 0.25);
     ctx.scale(scale, scale);
-    ctx.fillStyle = `rgba(5, 15, 23, ${0.2 + alpha * 0.45})`;
-    ctx.fillRect(-124, -32, 248, 64);
+    ctx.fillStyle = `rgba(5, 15, 23, ${0.26 + alpha * 0.45})`;
+    ctx.fillRect(-128, -34, 256, 68);
     ctx.strokeStyle = game.celebrationAccent;
     ctx.lineWidth = 3;
-    ctx.strokeRect(-124, -32, 248, 64);
+    ctx.strokeRect(-128, -34, 256, 68);
     ctx.fillStyle = game.celebrationAccent;
     ctx.font = 'bold 26px Segoe UI';
     ctx.textAlign = 'center';
@@ -906,6 +978,21 @@ function drawCelebration() {
     ctx.globalAlpha = alpha;
     ctx.fillText(game.celebrationText, 0, 0);
     ctx.restore();
+}
+
+function shadeColor(hex, amount) {
+    const normalized = hex.replace('#', '');
+    if (normalized.length !== 6) {
+        return hex;
+    }
+
+    const num = Number.parseInt(normalized, 16);
+    const clamp = (value) => Math.max(0, Math.min(255, value));
+    const r = clamp((num >> 16) + amount);
+    const g = clamp(((num >> 8) & 0x00ff) + amount);
+    const b = clamp((num & 0x0000ff) + amount);
+
+    return `rgb(${r}, ${g}, ${b})`;
 }
 
 function render() {
