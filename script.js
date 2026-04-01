@@ -23,6 +23,14 @@ const keys = {};
 const touchState = { left: false, right: false };
 const playerStart = { x: 185, y: 450 };
 const particles = [];
+const praiseWords = ['Well done!', 'Kudos!', 'Impressive!', 'Amazing!', 'Super star!'];
+const difficultyLabels = ['Rookie', 'Sprinter', 'Turbo', 'Rocket', 'Lightning', 'Galaxy'];
+const numberTips = [
+    (value) => `${value} is ${value % 2 === 0 ? 'even' : 'odd'}.`,
+    (value) => `${value} ${value % 2 === 0 ? 'can' : 'cannot'} be shared into 2 equal groups.`,
+    (value) => `Count it out: ${value} little blocks make ${value}.`,
+    (value) => `${value} comes right after ${value - 1 || 0}.`
+];
 
 const skins = [
     { id: 'classic', name: 'Classic Blue', color: '#6CABDD', accent: '#dff5ff', price: 0, description: 'Starter look' },
@@ -60,7 +68,17 @@ const game = {
     lastTime: 0,
     runCoins: 0,
     combo: 0,
-    flashAlpha: 0
+    flashAlpha: 0,
+    celebrationText: '',
+    celebrationAccent: '#ffe27a',
+    celebrationTimer: 0,
+    celebrationDuration: 0,
+    powerJumpCharges: 0,
+    powerJumpMilestone: 50,
+    praiseMilestone: 10,
+    difficultyMilestone: 20,
+    enemyCounter: 0,
+    difficultyStage: 0
 };
 
 const player = {
@@ -72,7 +90,10 @@ const player = {
     jumpPower: -560,
     grounded: true,
     squash: 1,
-    stretch: 1
+    stretch: 1,
+    blinkTimer: 1.8,
+    blinkDuration: 0,
+    powerJumpActive: false
 };
 
 const physics = {
@@ -261,11 +282,20 @@ function resetGame() {
     game.score = 0;
     game.elapsed = 0;
     game.spawnTimer = 0;
-    game.spawnInterval = 0.95;
+    game.spawnInterval = 1.02;
     game.enemySpeedBonus = 0;
     game.runCoins = 0;
     game.combo = 0;
     game.flashAlpha = 0;
+    game.celebrationText = '';
+    game.celebrationTimer = 0;
+    game.celebrationDuration = 0;
+    game.powerJumpCharges = 0;
+    game.powerJumpMilestone = 50;
+    game.praiseMilestone = 10;
+    game.difficultyMilestone = 20;
+    game.enemyCounter = 0;
+    game.difficultyStage = 0;
 
     player.x = playerStart.x;
     player.y = playerStart.y;
@@ -273,6 +303,9 @@ function resetGame() {
     player.grounded = true;
     player.squash = 1;
     player.stretch = 1;
+    player.blinkTimer = 1 + Math.random() * 2;
+    player.blinkDuration = 0;
+    player.powerJumpActive = false;
 
     particles.length = 0;
     enemies = [];
@@ -284,8 +317,11 @@ function startGame() {
     resetGame();
     game.state = 'running';
     overlay.hidden = true;
-    statusText.textContent = 'Stay alive, bank credits, and push your best score.';
-    playSound(420, 0.05, 'sawtooth', 0.03);
+    statusText.textContent = 'Catch the rhythm, dodge the number bricks, and learn while you play.';
+    playJingle([
+        [420, 0.05, 'sawtooth', 0.03, 0],
+        [560, 0.08, 'triangle', 0.025, 0.04]
+    ]);
 }
 
 function pauseGame() {
@@ -308,7 +344,7 @@ function showMenu() {
     game.state = 'menu';
     menuFeatures.hidden = false;
     overlayTitle.textContent = 'Square Dodger';
-    overlayMessage.textContent = 'Arcade survival with progression. Build score, earn credits, and unlock skins that persist between sessions.';
+    overlayMessage.textContent = 'Arcade survival with number bricks, surprise power jumps, fun sounds, and unlockable looks that stick between sessions.';
     actionButton.textContent = 'Start Run';
     overlay.hidden = false;
 }
@@ -367,11 +403,7 @@ function isMissionCompleted(mission) {
 }
 
 function getDifficultyLabel() {
-    if (game.elapsed > 42) return 'Legend';
-    if (game.elapsed > 30) return 'Elite';
-    if (game.elapsed > 18) return 'Pro';
-    if (game.elapsed > 9) return 'Rising';
-    return 'Rookie';
+    return difficultyLabels[Math.min(game.difficultyStage, difficultyLabels.length - 1)];
 }
 
 function handleControlPress(control) {
@@ -395,19 +427,37 @@ function jump() {
     player.grounded = false;
     player.stretch = 1.18;
     player.squash = 0.88;
+    player.powerJumpActive = game.powerJumpCharges > 0;
+    if (player.powerJumpActive) {
+        game.powerJumpCharges -= 1;
+        triggerCelebration('Power Jump!', '#9cf6c9', 0.85);
+        statusText.textContent = game.powerJumpCharges > 0
+            ? `Power jump smash ready. ${game.powerJumpCharges} extra charge${game.powerJumpCharges === 1 ? '' : 's'} left.`
+            : 'Power jump smash used. Reach the next 50-point mark for another one.';
+        playJingle([
+            [660, 0.05, 'square', 0.03, 0],
+            [880, 0.09, 'triangle', 0.03, 0.03]
+        ]);
+    } else {
+        playSound(520, 0.05, 'square', 0.025);
+    }
+
     burst(player.x + player.size / 2, player.y + player.size, 6, getSelectedSkin().accent, 36);
-    playSound(520, 0.05, 'square', 0.025);
 }
 
 function spawnEnemy() {
     const size = 18 + Math.random() * 28;
+    game.enemyCounter += 1;
+    const label = ((game.enemyCounter - 1) % 30) + 1;
     enemies.push({
         x: Math.random() * (canvas.width - size),
         y: -size,
         size,
-        speed: 220 + Math.random() * 140 + game.enemySpeedBonus,
-        color: Math.random() > 0.5 ? '#DA291C' : '#ff8b7a',
-        spin: (Math.random() - 0.5) * 0.08
+        speed: 190 + Math.random() * 110 + game.enemySpeedBonus,
+        color: label % 2 === 0 ? '#ff7c6b' : '#d94d41',
+        label,
+        spin: (Math.random() - 0.5) * 0.08,
+        wobble: Math.random() * Math.PI * 2
     });
 }
 
@@ -423,8 +473,77 @@ function awardDodge(enemy) {
         playSound(610, 0.03, 'triangle', 0.02);
     }
 
+    if (game.score > 0 && game.score % 5 === 0) {
+        const tip = numberTips[(game.score / 5 - 1) % numberTips.length];
+        statusText.textContent = `Number note: ${tip(enemy.label)}`;
+    }
+
     burst(enemy.x + enemy.size / 2, canvas.height - 10, 4, enemy.color, 28);
+    handleMilestones();
     updateHud();
+}
+
+function awardPowerJumpBreak(enemy) {
+    game.score += 10;
+    game.combo += 3;
+    triggerCelebration('+10 Smash!', '#9cf6c9', 0.7);
+    burst(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, 14, '#fff0a8', 90);
+    burst(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, 12, enemy.color, 65);
+    playJingle([
+        [520, 0.04, 'square', 0.028, 0],
+        [720, 0.05, 'square', 0.03, 0.03],
+        [980, 0.08, 'triangle', 0.03, 0.06]
+    ]);
+    statusText.textContent = 'Boom! Power jump smashed a number brick for 10 points.';
+    player.powerJumpActive = false;
+    handleMilestones();
+    updateHud();
+}
+
+function handleMilestones() {
+    while (game.score >= game.praiseMilestone) {
+        const praise = praiseWords[(game.praiseMilestone / 10 - 1) % praiseWords.length];
+        triggerCelebration(praise, '#ffe27a', 0.95);
+        burst(player.x + player.size / 2, player.y, 12, '#ffe27a', 58);
+        playJingle([
+            [700, 0.04, 'triangle', 0.02, 0],
+            [840, 0.05, 'triangle', 0.024, 0.04],
+            [980, 0.06, 'triangle', 0.026, 0.08]
+        ]);
+        game.praiseMilestone += 10;
+    }
+
+    while (game.score >= game.difficultyMilestone) {
+        game.difficultyStage += 1;
+        game.difficultyMilestone += 20;
+        game.flashAlpha = 0.14;
+        statusText.textContent = `Level up. ${getDifficultyLabel()} mode is live, so the bricks will move a little faster now.`;
+        playJingle([
+            [300, 0.05, 'sawtooth', 0.025, 0],
+            [420, 0.05, 'square', 0.025, 0.04],
+            [540, 0.07, 'triangle', 0.025, 0.08]
+        ]);
+    }
+
+    while (game.score >= game.powerJumpMilestone) {
+        game.powerJumpCharges += 1;
+        game.powerJumpMilestone += 50;
+        triggerCelebration('Power Jump Ready!', '#9cf6c9', 1.2);
+        burst(player.x + player.size / 2, player.y, 16, '#9cf6c9', 72);
+        statusText.textContent = `Power jump unlocked. Press jump to smash one brick for 10 points. Charges: ${game.powerJumpCharges}.`;
+        playJingle([
+            [540, 0.05, 'square', 0.028, 0],
+            [720, 0.05, 'square', 0.028, 0.04],
+            [920, 0.09, 'triangle', 0.03, 0.08]
+        ]);
+    }
+}
+
+function triggerCelebration(text, accent, duration) {
+    game.celebrationText = text;
+    game.celebrationAccent = accent;
+    game.celebrationDuration = duration;
+    game.celebrationTimer = duration;
 }
 
 function update(deltaTime) {
@@ -434,10 +553,11 @@ function update(deltaTime) {
     }
 
     game.elapsed += deltaTime;
-    game.enemySpeedBonus = Math.min(280, game.elapsed * 8.5);
-    game.spawnInterval = Math.max(0.3, 0.92 - game.elapsed * 0.012);
+    game.enemySpeedBonus = Math.min(260, game.difficultyStage * 34 + game.elapsed * 4.2);
+    game.spawnInterval = Math.max(0.34, 1.02 - (game.difficultyStage * 0.055) - game.elapsed * 0.004);
     game.spawnTimer += deltaTime;
     game.flashAlpha = Math.max(0, game.flashAlpha - deltaTime * 0.45);
+    game.celebrationTimer = Math.max(0, game.celebrationTimer - deltaTime);
 
     const movingLeft = keys.ArrowLeft || keys.KeyA || touchState.left;
     const movingRight = keys.ArrowRight || keys.KeyD || touchState.right;
@@ -456,6 +576,14 @@ function update(deltaTime) {
     player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
     player.dy += physics.gravity * deltaTime;
     player.y += player.dy * deltaTime;
+    player.blinkTimer -= deltaTime;
+
+    if (player.blinkDuration > 0) {
+        player.blinkDuration = Math.max(0, player.blinkDuration - deltaTime);
+    } else if (player.blinkTimer <= 0) {
+        player.blinkDuration = 0.14;
+        player.blinkTimer = 1.2 + Math.random() * 2.4;
+    }
 
     player.squash += (1 - player.squash) * 10 * deltaTime;
     player.stretch += (1 - player.stretch) * 10 * deltaTime;
@@ -471,6 +599,7 @@ function update(deltaTime) {
         player.grounded = true;
         player.squash = 1.15;
         player.stretch = 0.9;
+        player.powerJumpActive = false;
     }
 
     while (game.spawnTimer >= game.spawnInterval) {
@@ -480,6 +609,8 @@ function update(deltaTime) {
 
     enemies = enemies.filter((enemy) => {
         enemy.y += enemy.speed * deltaTime;
+        enemy.x += Math.sin((game.elapsed * 2.2) + enemy.wobble) * enemy.spin * 14;
+        enemy.x = Math.max(0, Math.min(canvas.width - enemy.size, enemy.x));
 
         const collided =
             player.x < enemy.x + enemy.size &&
@@ -488,6 +619,10 @@ function update(deltaTime) {
             player.y + player.size > enemy.y;
 
         if (collided) {
+            if (player.powerJumpActive) {
+                awardPowerJumpBreak(enemy);
+                return false;
+            }
             endGame();
             return true;
         }
@@ -559,16 +694,24 @@ function drawPlayer() {
     const drawHeight = player.size * player.stretch;
     const offsetX = (player.size - drawWidth) / 2;
     const offsetY = (player.size - drawHeight) / 2;
+    const eyeHeight = player.blinkDuration > 0 ? drawHeight * 0.04 : drawHeight * 0.16;
+    const eyeY = player.y + offsetY + drawHeight * 0.26;
 
     ctx.save();
     ctx.fillStyle = skin.color;
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = `${skin.color}aa`;
+    ctx.shadowBlur = player.powerJumpActive ? 28 : 18;
+    ctx.shadowColor = player.powerJumpActive ? '#9cf6c9' : `${skin.color}aa`;
     ctx.fillRect(player.x + offsetX, player.y + offsetY, drawWidth, drawHeight);
 
     ctx.fillStyle = skin.accent;
-    ctx.fillRect(player.x + offsetX + drawWidth * 0.22, player.y + offsetY + drawHeight * 0.24, drawWidth * 0.16, drawHeight * 0.16);
-    ctx.fillRect(player.x + offsetX + drawWidth * 0.62, player.y + offsetY + drawHeight * 0.24, drawWidth * 0.16, drawHeight * 0.16);
+    ctx.fillRect(player.x + offsetX + drawWidth * 0.22, eyeY, drawWidth * 0.16, eyeHeight);
+    ctx.fillRect(player.x + offsetX + drawWidth * 0.62, eyeY, drawWidth * 0.16, eyeHeight);
+
+    if (player.powerJumpActive) {
+        ctx.strokeStyle = '#d8fff0';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(player.x + offsetX - 4, player.y + offsetY - 4, drawWidth + 8, drawHeight + 8);
+    }
     ctx.restore();
 }
 
@@ -579,6 +722,16 @@ function drawEnemies() {
         ctx.rotate((enemy.y / canvas.height) * enemy.spin * 6);
         ctx.fillStyle = enemy.color;
         ctx.fillRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
+
+        ctx.strokeStyle = enemy.label % 2 === 0 ? '#ffd7a3' : '#ffb8b0';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
+
+        ctx.fillStyle = '#fff7ea';
+        ctx.font = `bold ${Math.max(12, enemy.size * 0.42)}px Segoe UI`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(enemy.label), 0, 1);
         ctx.restore();
     });
 }
@@ -598,10 +751,40 @@ function drawRunInfo() {
 
     ctx.save();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.fillRect(12, 12, 132, 34);
+    ctx.fillRect(12, 12, 196, 64);
     ctx.fillStyle = '#f5fbff';
     ctx.font = 'bold 14px Segoe UI';
     ctx.fillText(`Combo ${game.combo}`, 24, 34);
+    ctx.font = '12px Segoe UI';
+    ctx.fillStyle = game.powerJumpCharges > 0 ? '#9cf6c9' : '#c7d8e3';
+    ctx.fillText(`Power jumps ${game.powerJumpCharges}`, 24, 52);
+    ctx.fillStyle = '#ffe27a';
+    ctx.fillText(`Next wow ${game.praiseMilestone}`, 108, 34);
+    ctx.fillText(`Next smash ${game.powerJumpMilestone}`, 108, 52);
+    ctx.restore();
+}
+
+function drawCelebration() {
+    if (game.celebrationTimer <= 0) return;
+
+    const progress = game.celebrationTimer / game.celebrationDuration;
+    const alpha = Math.min(1, progress * 1.5);
+    const scale = 1 + (1 - progress) * 0.16;
+
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height * 0.25);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = `rgba(5, 15, 23, ${0.2 + alpha * 0.45})`;
+    ctx.fillRect(-124, -32, 248, 64);
+    ctx.strokeStyle = game.celebrationAccent;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-124, -32, 248, 64);
+    ctx.fillStyle = game.celebrationAccent;
+    ctx.font = 'bold 26px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = alpha;
+    ctx.fillText(game.celebrationText, 0, 0);
     ctx.restore();
 }
 
@@ -611,6 +794,7 @@ function render() {
     drawPlayer();
     drawEnemies();
     drawRunInfo();
+    drawCelebration();
 }
 
 function unlockAudio() {
@@ -634,12 +818,32 @@ function playSound(frequency, duration, type, volume) {
     const gain = audio.context.createGain();
     oscillator.type = type;
     oscillator.frequency.value = frequency;
-    gain.gain.value = volume;
+    gain.gain.setValueAtTime(volume, audio.context.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audio.context.currentTime + duration);
     oscillator.connect(gain);
     gain.connect(audio.master);
     oscillator.start();
     oscillator.stop(audio.context.currentTime + duration);
+}
+
+function playJingle(notes) {
+    if (!save.soundEnabled || !audio.context || !audio.master) {
+        return;
+    }
+
+    notes.forEach(([frequency, duration, type, volume, delay]) => {
+        const oscillator = audio.context.createOscillator();
+        const gain = audio.context.createGain();
+        const startTime = audio.context.currentTime + delay;
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(volume, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        oscillator.connect(gain);
+        gain.connect(audio.master);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+    });
 }
 
 function gameLoop(timestamp) {
