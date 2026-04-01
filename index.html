@@ -21,16 +21,23 @@
     <meta name="twitter:image" content="https://jidsgame.netlify.app/social-preview.png">
     <title>Square Dodger | Arcade Survival by Olawale</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Manrope:wght@400;500;600;700&display=swap');
+
         :root {
             --bg: #08131c;
-            --panel: rgba(8, 19, 28, 0.82);
-            --panel-border: rgba(138, 193, 224, 0.28);
+            --panel: rgba(7, 20, 28, 0.8);
+            --panel-strong: rgba(9, 25, 35, 0.92);
+            --panel-soft: rgba(255, 255, 255, 0.04);
+            --panel-border: rgba(138, 193, 224, 0.24);
             --text: #f5fbff;
             --muted: #9eb8c7;
-            --accent: #6cabdd;
+            --accent: #79d3f2;
+            --accent-strong: #9ae7ff;
+            --gold: #ffd166;
             --danger: #ff6b57;
             --success: #7ed7a6;
-            --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            --shadow-soft: 0 14px 30px rgba(0, 0, 0, 0.18);
         }
 
         * { box-sizing: border-box; }
@@ -45,21 +52,101 @@
             overflow-x: hidden;
             overflow-y: auto;
             color: var(--text);
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Manrope", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             background:
-                radial-gradient(circle at top, rgba(108, 172, 221, 0.2), transparent 35%),
+                radial-gradient(circle at 20% 0%, rgba(121, 211, 242, 0.24), transparent 28%),
+                radial-gradient(circle at 80% 10%, rgba(255, 209, 102, 0.16), transparent 24%),
                 linear-gradient(180deg, #102634 0%, #07111a 100%);
+            position: relative;
+        }
+
+        body::before,
+        body::after {
+            content: "";
+            position: fixed;
+            inset: auto;
+            pointer-events: none;
+            border-radius: 999px;
+            filter: blur(10px);
+            opacity: 0.42;
+        }
+
+        body::before {
+            width: 240px;
+            height: 240px;
+            top: 88px;
+            left: -70px;
+            background: radial-gradient(circle, rgba(121, 211, 242, 0.24), transparent 70%);
+            animation: drift 11s ease-in-out infinite;
+        }
+
+        body::after {
+            width: 280px;
+            height: 280px;
+            right: -90px;
+            bottom: 120px;
+            background: radial-gradient(circle, rgba(255, 209, 102, 0.16), transparent 70%);
+            animation: drift 13s ease-in-out infinite reverse;
         }
 
         #game-container {
             width: min(100%, 460px);
             margin: 0 auto;
-            background: var(--panel);
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+                var(--panel);
             border: 1px solid var(--panel-border);
-            border-radius: 24px;
+            border-radius: 28px;
             padding: 18px;
             box-shadow: var(--shadow);
             backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #game-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(121, 211, 242, 0.08), transparent 35%, rgba(255, 209, 102, 0.06));
+            pointer-events: none;
+        }
+
+        .top-strip {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .trust-pill,
+        .mini-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            color: var(--text);
+            font-size: 0.78rem;
+            letter-spacing: 0.03em;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .trust-pill::before {
+            content: "";
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: var(--success);
+            box-shadow: 0 0 16px rgba(126, 215, 166, 0.7);
+        }
+
+        .mini-pill {
+            color: var(--muted);
         }
 
         .hud {
@@ -68,11 +155,14 @@
             align-items: center;
             gap: 12px;
             margin-bottom: 14px;
+            position: relative;
+            z-index: 1;
         }
 
         .branding h1 {
             margin: 0;
-            font-size: 1.35rem;
+            font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+            font-size: 1.55rem;
             letter-spacing: 0.04em;
         }
 
@@ -82,15 +172,30 @@
             font-size: 0.92rem;
         }
 
+        .brand-kicker {
+            display: inline-flex;
+            margin-bottom: 8px;
+            color: var(--accent-strong);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
         .scoreboard {
             text-align: right;
             display: grid;
             gap: 4px;
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .scoreboard strong {
             display: block;
-            font-size: 1.4rem;
+            font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+            font-size: 1.55rem;
         }
 
         .scoreboard span {
@@ -105,6 +210,17 @@
         .canvas-wrap {
             position: relative;
             overflow: visible;
+            z-index: 1;
+        }
+
+        .canvas-wrap::before {
+            content: "";
+            position: absolute;
+            inset: -12px;
+            border-radius: 28px;
+            background: radial-gradient(circle at top, rgba(121, 211, 242, 0.12), transparent 55%);
+            z-index: -1;
+            animation: pulseGlow 4.5s ease-in-out infinite;
         }
 
         canvas {
@@ -114,6 +230,7 @@
             border-radius: 18px;
             border: 2px solid rgba(255, 255, 255, 0.12);
             background: #000;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 20px 40px rgba(0, 0, 0, 0.28);
         }
 
         .overlay {
@@ -123,7 +240,9 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            background: linear-gradient(180deg, rgba(5, 15, 23, 0.55), rgba(5, 15, 23, 0.88));
+            background:
+                linear-gradient(180deg, rgba(5, 15, 23, 0.48), rgba(5, 15, 23, 0.88)),
+                radial-gradient(circle at top, rgba(121, 211, 242, 0.14), transparent 40%);
             border-radius: 18px;
             text-align: center;
             overflow-y: auto;
@@ -135,17 +254,38 @@
 
         .panel {
             max-width: 320px;
+            background: rgba(6, 17, 24, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 22px;
+            padding: 20px 18px;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-soft);
         }
 
         .panel h2 {
             margin: 0 0 10px;
-            font-size: 1.7rem;
+            font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+            font-size: 1.85rem;
         }
 
         .panel p {
             margin: 0 0 14px;
             color: var(--muted);
             line-height: 1.5;
+        }
+
+        .panel-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(121, 211, 242, 0.12);
+            color: var(--accent-strong);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
         }
 
         .panel .accent {
@@ -159,21 +299,30 @@
             font-size: 0.96rem;
             font-weight: 700;
             cursor: pointer;
-            background: var(--accent);
+            background: linear-gradient(135deg, var(--accent), var(--accent-strong));
             color: #041018;
             min-width: 148px;
-            transition: transform 0.15s ease, opacity 0.15s ease;
+            transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            box-shadow: 0 12px 24px rgba(121, 211, 242, 0.26);
         }
 
         button:hover,
         button:focus-visible {
-            transform: translateY(-1px);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 16px 28px rgba(121, 211, 242, 0.34);
+        }
+
+        button:focus-visible,
+        .feedback-link:focus-visible {
+            outline: 2px solid rgba(154, 231, 255, 0.9);
+            outline-offset: 2px;
         }
 
         .secondary-button {
             background: rgba(255, 255, 255, 0.08);
             color: var(--text);
             border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: none;
         }
 
         .button-row {
@@ -181,6 +330,12 @@
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
+        }
+
+        .button-row .secondary-button:hover,
+        .button-row .secondary-button:focus-visible {
+            border-color: rgba(121, 211, 242, 0.5);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
         }
 
         .feature-list {
@@ -199,6 +354,13 @@
             border-radius: 12px;
             padding: 10px 12px;
             font-size: 0.92rem;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .feature-list li:hover {
+            transform: translateY(-1px);
+            border-color: rgba(121, 211, 242, 0.34);
+            background: rgba(255, 255, 255, 0.07);
         }
 
         .feature-list li span {
@@ -215,11 +377,17 @@
             margin-top: 14px;
             color: var(--muted);
             font-size: 0.88rem;
+            position: relative;
+            z-index: 1;
+            padding: 10px 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .lower-panels {
             display: grid;
-            grid-template-columns: 1.1fr 0.9fr;
+            grid-template-columns: 1fr;
             gap: 12px;
             margin-top: 14px;
         }
@@ -231,11 +399,87 @@
             margin-top: 12px;
         }
 
+        .intro-grid,
+        .info-grid {
+            display: grid;
+            gap: 12px;
+            margin-top: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-card {
+            padding: 18px;
+            border-radius: 22px;
+            background:
+                linear-gradient(135deg, rgba(121, 211, 242, 0.12), rgba(255, 209, 102, 0.05)),
+                rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(121, 211, 242, 0.18);
+        }
+
+        .hero-card h2,
+        .card h3 {
+            font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+        }
+
+        .hero-card h2 {
+            margin: 0 0 10px;
+            font-size: 1.25rem;
+        }
+
+        .hero-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .signal-list,
+        .step-list {
+            list-style: none;
+            margin: 14px 0 0;
+            padding: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .signal-list li,
+        .step-list li {
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.18s ease, border-color 0.18s ease;
+        }
+
+        .signal-list li:hover,
+        .step-list li:hover,
+        .card:hover,
+        .skin-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(121, 211, 242, 0.34);
+        }
+
+        .signal-list strong,
+        .step-list strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.92rem;
+        }
+
+        .signal-list span,
+        .step-list span {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
         .card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 18px;
             padding: 14px;
+            box-shadow: var(--shadow-soft);
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
         }
 
         .card h3 {
@@ -292,6 +536,7 @@
             padding: 10px;
             display: grid;
             gap: 8px;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
         }
 
         .skin-card.active {
@@ -353,13 +598,14 @@
             color: var(--text);
             text-decoration: none;
             font-size: 0.9rem;
-            transition: transform 0.15s ease, border-color 0.15s ease;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
         }
 
         .feedback-link:hover,
         .feedback-link:focus-visible {
-            transform: translateY(-1px);
+            transform: translateY(-2px);
             border-color: rgba(108, 172, 221, 0.5);
+            background: rgba(255, 255, 255, 0.07);
         }
 
         .feedback-link span {
@@ -376,6 +622,39 @@
             color: var(--text);
             font-size: 0.84rem;
             overflow-wrap: anywhere;
+        }
+
+        .about-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .about-actions button {
+            min-width: 0;
+            padding-inline: 16px;
+        }
+
+        .help-copy {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .trust-note {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            background: rgba(126, 215, 166, 0.08);
+            border: 1px solid rgba(126, 215, 166, 0.18);
+            color: #d8fff0;
+            line-height: 1.55;
+            font-size: 0.88rem;
         }
 
         .credit {
@@ -415,6 +694,26 @@
             border-color: rgba(126, 215, 166, 0.28);
         }
 
+        @keyframes drift {
+            0%, 100% { transform: translateY(0px) translateX(0px); }
+            50% { transform: translateY(12px) translateX(10px); }
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.02); opacity: 1; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation: none !important;
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
         @media (max-width: 700px) {
             body {
                 align-items: flex-start;
@@ -433,12 +732,17 @@
                 margin-bottom: 10px;
             }
 
+            .top-strip {
+                margin-bottom: 10px;
+            }
+
             .scoreboard {
                 text-align: left;
+                width: 100%;
             }
 
             .branding h1 {
-                font-size: 1.15rem;
+                font-size: 1.28rem;
             }
 
             .branding p,
@@ -468,6 +772,7 @@
 
             .panel {
                 max-width: 100%;
+                padding: 18px 14px;
             }
 
             .panel h2 {
@@ -516,6 +821,14 @@
                 grid-template-columns: 1fr;
                 gap: 10px;
                 margin-top: 10px;
+            }
+
+            .about-actions {
+                flex-direction: column;
+            }
+
+            .about-actions button {
+                width: 100%;
             }
 
             .card {
@@ -602,10 +915,16 @@
 </head>
 <body>
     <div id="game-container">
+        <div class="top-strip">
+            <span class="trust-pill">Safe to try: browser-only, no download, no sign-up</span>
+            <span class="mini-pill">Built for mobile and desktop</span>
+        </div>
+
         <div class="hud">
             <div class="branding">
+                <span class="brand-kicker">Arcade Survival Demo</span>
                 <h1>Square Dodger</h1>
-                <p>Dodge longer, score higher, survive the rush.</p>
+                <p>Dodge longer, score higher, and learn the flow in seconds.</p>
             </div>
             <div class="scoreboard">
                 <strong id="score">0</strong>
@@ -619,6 +938,7 @@
 
             <div id="overlay" class="overlay">
                 <div class="panel">
+                    <div class="panel-badge">Quick start inside your browser</div>
                     <h2 id="overlay-title">Ready to dodge?</h2>
                     <p id="overlay-message">
                         Use <span class="accent">Left</span> and <span class="accent">Right</span> to move,
@@ -651,6 +971,30 @@
             <span id="difficulty-text">Difficulty: Rookie</span>
         </div>
 
+        <div class="intro-grid">
+            <section class="hero-card">
+                <h2>Why this feels safer to try</h2>
+                <p>
+                    Square Dodger runs directly in the browser, asks for no account, and keeps score progression on the device.
+                    New players can understand the loop before committing to a run.
+                </p>
+                <ul class="signal-list">
+                    <li>
+                        <strong>No setup friction</strong>
+                        <span>Open the page and play immediately. There is no installer, sign-up flow, or permission wall.</span>
+                    </li>
+                    <li>
+                        <strong>Clear first-time guidance</strong>
+                        <span>Controls, scoring, power jumps, and progression are explained up front instead of hidden in the gameplay.</span>
+                    </li>
+                    <li>
+                        <strong>Playtest-ready polish</strong>
+                        <span>Hover states, motion, and cleaner hierarchy help the build feel intentional instead of risky or unfinished.</span>
+                    </li>
+                </ul>
+            </section>
+        </div>
+
         <div class="lower-panels">
             <section class="card" data-collapsible-card>
                 <div class="card-header">
@@ -672,6 +1016,41 @@
                     <div id="skins-grid" class="skins-grid"></div>
                     <small>Unlocked looks are saved locally so your players keep progression between sessions.</small>
                 </div>
+            </section>
+        </div>
+
+        <div class="info-grid">
+            <section class="card">
+                <h3>About The Game</h3>
+                <p>Square Dodger is a fast survival mini-game where each near miss becomes a point, milestone, or cosmetic unlock. It is designed to feel approachable in the first 10 seconds and more intense as the run builds.</p>
+                <div class="about-actions">
+                    <button type="button" id="about-button" class="secondary-button">Show Quick Walkthrough</button>
+                    <button type="button" id="demo-button">Show Demo Tips</button>
+                </div>
+                <div class="help-copy" id="about-copy">
+                    Start a run, dodge the numbered bricks, build score, and earn credits for skins. Every 10 points celebrates progress, and every 50 points unlocks a power jump that smashes one brick for bonus score.
+                </div>
+                <div class="trust-note">
+                    Trust note: the game runs fully in the browser, does not ask for sign-in, and keeps progress on the same device using local storage only.
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>How It Works</h3>
+                <ul class="step-list">
+                    <li>
+                        <strong>1. Learn the controls fast</strong>
+                        <span>Use keyboard or touch controls to move left, right, and jump. The game is tuned for quick pickup on both desktop and mobile.</span>
+                    </li>
+                    <li>
+                        <strong>2. Survive to raise the pace</strong>
+                        <span>Every dodge adds score. Difficulty ramps up gradually so new players can settle in before the pressure spikes.</span>
+                    </li>
+                    <li>
+                        <strong>3. Keep progression between sessions</strong>
+                        <span>Credits and unlocked skins stay saved locally, so returning players feel momentum instead of starting cold every time.</span>
+                    </li>
+                </ul>
             </section>
         </div>
 

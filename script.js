@@ -17,6 +17,9 @@ const skinsGrid = document.getElementById('skins-grid');
 const controlButtons = document.querySelectorAll('[data-control]');
 const collapsibleCards = document.querySelectorAll('[data-collapsible-card]');
 const panelToggleButtons = document.querySelectorAll('[data-toggle-panel]');
+const aboutButton = document.getElementById('about-button');
+const demoButton = document.getElementById('demo-button');
+const aboutCopy = document.getElementById('about-copy');
 
 const STORAGE_KEY = 'square-dodger-save-v2';
 const keys = {};
@@ -101,6 +104,67 @@ const physics = {
     floor: canvas.height
 };
 
+const helpModes = {
+    default: {
+        copy: 'Start a run, dodge the numbered bricks, build score, and earn credits for skins. Every 10 points celebrates progress, and every 50 points unlocks a power jump that smashes one brick for bonus score.',
+        status: 'Press start to begin.',
+        features: [
+            {
+                title: 'Number-brick challenge',
+                body: 'Each red brick now carries a number to keep the action playful and educational.'
+            },
+            {
+                title: 'Milestone surprises',
+                body: 'Celebrate every 10 points, unlock power jumps at 50, and push for bigger scores.'
+            },
+            {
+                title: 'Mobile-ready controls',
+                body: 'Move, jump, and smash on touch or keyboard without extra setup.'
+            }
+        ]
+    },
+    walkthrough: {
+        title: 'How the run works',
+        message: 'Move left or right to stay clear of the falling bricks. Jump when the path closes, then use a power jump later in the run to smash through a block for extra points.',
+        features: [
+            {
+                title: 'Start simple',
+                body: 'The opening seconds are deliberately calmer so first-time players can understand the controls.'
+            },
+            {
+                title: 'Build rhythm',
+                body: 'Each dodge adds score, and milestone celebrations confirm that you are progressing.'
+            },
+            {
+                title: 'Unlock style',
+                body: 'Run credits buy skins, and those unlocks stay saved on the same device.'
+            }
+        ],
+        copy: 'Quick walkthrough: step into the run, dodge to score, hit milestone celebrations, then spend credits on new skins. The entire loop is visible without downloading anything or handing over personal info.',
+        status: 'Walkthrough loaded. You can start immediately when you feel ready.'
+    },
+    demo: {
+        title: 'What to expect in your first 20 seconds',
+        message: 'You will see numbered red bricks dropping from above. The pace starts friendly, then speeds up as your score climbs and special power jumps begin to unlock.',
+        features: [
+            {
+                title: 'Second 1 to 5',
+                body: 'Learn movement and get comfortable staying under clear lanes.'
+            },
+            {
+                title: 'Second 6 to 15',
+                body: 'The rhythm sharpens, combo credits show up, and the run starts feeling rewarding.'
+            },
+            {
+                title: 'Second 16 onward',
+                body: 'Difficulty ramps up, milestone praise appears, and the game asks for sharper reactions.'
+            }
+        ],
+        copy: 'Demo tip: treat the first few seconds as your onboarding space. Once the timing clicks, the game rewards consistency with credits, celebrations, and stronger runs.',
+        status: 'Demo tips are visible now. Start a run to feel the ramp in real time.'
+    }
+};
+
 const audio = {
     context: null,
     master: null
@@ -173,6 +237,14 @@ panelToggleButtons.forEach((button) => {
     });
 });
 
+aboutButton?.addEventListener('click', () => {
+    applyHelpMode('walkthrough');
+});
+
+demoButton?.addEventListener('click', () => {
+    applyHelpMode('demo');
+});
+
 function loadSave() {
     try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -201,6 +273,7 @@ function initializeUi() {
     updateHud();
     updateMission();
     setInitialPanelState();
+    applyHelpMode('default');
     showMenu();
 }
 
@@ -345,8 +418,55 @@ function showMenu() {
     menuFeatures.hidden = false;
     overlayTitle.textContent = 'Square Dodger';
     overlayMessage.textContent = 'Arcade survival with number bricks, surprise power jumps, fun sounds, and unlockable looks that stick between sessions.';
+    renderFeatureList(helpModes.default.features);
     actionButton.textContent = 'Start Run';
     overlay.hidden = false;
+}
+
+function renderFeatureList(items) {
+    menuFeatures.innerHTML = '';
+
+    items.forEach((item) => {
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `${item.title}<span>${item.body}</span>`;
+        menuFeatures.appendChild(listItem);
+    });
+}
+
+function applyHelpMode(mode) {
+    const content = helpModes[mode];
+    if (!content) return;
+
+    if (aboutButton) {
+        aboutButton.textContent = mode === 'walkthrough' ? 'Walkthrough Loaded' : 'Show Quick Walkthrough';
+    }
+
+    if (demoButton) {
+        demoButton.textContent = mode === 'demo' ? 'Demo Tips Loaded' : 'Show Demo Tips';
+    }
+
+    if (aboutCopy) {
+        aboutCopy.textContent = content.copy;
+    }
+
+    if (game.state === 'menu') {
+        if (content.title) {
+            overlayTitle.textContent = content.title;
+        }
+
+        if (content.message) {
+            overlayMessage.textContent = content.message;
+        }
+
+        if (content.features) {
+            renderFeatureList(content.features);
+        }
+
+        overlay.hidden = false;
+        menuFeatures.hidden = false;
+    }
+
+    statusText.textContent = content.status;
 }
 
 function endGame() {
