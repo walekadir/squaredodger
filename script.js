@@ -6,9 +6,9 @@ const overlay = document.getElementById('overlay'), overlayTitle = document.getE
 const overlayStats = document.getElementById('overlay-stats'), overlayScore = document.getElementById('overlay-score'), overlayBest = document.getElementById('overlay-best'), overlayCredits = document.getElementById('overlay-credits');
 const menuFeatures = document.getElementById('menu-features'), actionButton = document.getElementById('action-button'), heroStartButton = document.getElementById('hero-start-button'), muteButton = document.getElementById('mute-button'), shareButton = document.getElementById('share-button');
 const challengeList = document.getElementById('challenge-list'), challengeFill = document.getElementById('challenge-progress-fill'), challengeLabel = document.getElementById('challenge-progress-label'), challengeCopy = document.getElementById('challenge-progress-copy');
-const leaderboardList = document.getElementById('leaderboard-list'), skinsGrid = document.getElementById('skins-grid'), idlePrompt = document.getElementById('idle-prompt');
+const leaderboardList = document.getElementById('leaderboard-list'), skinsGrid = document.getElementById('skins-grid'), upgradesGrid = document.getElementById('upgrades-grid'), idlePrompt = document.getElementById('idle-prompt');
 
-const STORAGE_KEY = 'square-dodger-save-v3', LEGACY_KEY = 'square-dodger-save-v2', SHARE_URL = 'https://jidsgame.netlify.app/';
+const STORAGE_KEY = 'square-dodger-save-v4', LEGACY_KEY = 'square-dodger-save-v3', SHARE_URL = 'https://jidsgame.netlify.app/';
 const keys = {}, touchState = { left: false, right: false, lastX: null, startY: null }, particles = [];
 let enemies = [], idleTimer = null;
 
@@ -19,12 +19,22 @@ const challengeTiers = [
     { title: 'Legend', target: 100, copy: 'A proper browser arcade flex.' }
 ];
 const heatLabels = ['Opening', 'Sharp', 'Danger', 'Mayhem', 'Blackout'];
+
+// NEW: Dynamic background colors based on heat
+const heatColors = [
+    ['#10213e', '#081326', '#03060d'], // 0: Blue
+    ['#0d2e2e', '#061a1a', '#020a0a'], // 1: Teal
+    ['#2e0d29', '#1a0615', '#0a0208'], // 2: Purple
+    ['#3e1010', '#260808', '#0d0303'], // 3: Red
+    ['#111111', '#050505', '#000000']  // 4: Blackout
+];
+
 const leaderboardSeed = [
     { name: 'Tobi', score: 42, tag: 'Lagos lane' }, { name: 'Maya', score: 39, tag: 'Night run' },
     { name: 'Chioma', score: 35, tag: 'Close calls only' }, { name: 'Liam', score: 31, tag: 'Smooth fingers' },
-    { name: 'Zainab', score: 28, tag: 'One more run' }, { name: 'Noah', score: 26, tag: 'Lucky smash' },
-    { name: 'Ayo', score: 23, tag: 'Street reflexes' }, { name: 'Sofia', score: 20, tag: 'Warm-up board' }
+    { name: 'Zainab', score: 28, tag: 'One more run' }, { name: 'Noah', score: 26, tag: 'Lucky smash' }
 ];
+
 const skins = [
     { id: 'classic', name: 'Classic Blue', color: '#58c3ff', accent: '#dfffff', price: 0, description: 'Clean arcade starter' },
     { id: 'ember', name: 'Ember Rush', color: '#ff7b66', accent: '#ffe0d8', price: 25, description: 'Heat-wave glow' },
@@ -32,8 +42,13 @@ const skins = [
     { id: 'nova', name: 'Nova Gold', color: '#ffd45f', accent: '#fff5cf', price: 120, description: 'High-score flex' }
 ];
 
+// NEW: Upgrades Shop Configuration
+const storeUpgrades = [
+    { id: 'quickCharge', name: 'Quick Charge', maxLevel: 2, prices: [80, 200], effects: [25, 20, 15], desc: 'Lower points needed to unlock a smash.' },
+    { id: 'deepPockets', name: 'Deep Pockets', maxLevel: 2, prices: [120, 280], effects: [1, 2, 3], desc: 'Hold more charged smashes at once.' }
+];
+
 const save = loadSave();
-// Start Y adapted for the new taller 640px canvas
 const playerStart = { x: 185, y: 590 };
 
 const game = {
@@ -53,13 +68,18 @@ initializeUi(); attachEvents(); requestAnimationFrame(gameLoop);
 function loadSave() {
     const parsed = parseStorage(STORAGE_KEY) || parseStorage(LEGACY_KEY) || {};
     const unlocked = Array.isArray(parsed.unlockedSkins) && parsed.unlockedSkins.length ? parsed.unlockedSkins.filter(id => skins.some(s => s.id === id)) : ['classic'];
+    const loadedUpgrades = parsed.upgrades || { quickCharge: 0, deepPockets: 0 };
     return {
         bestScore: Number(parsed.bestScore) || 0,
         coins: Number(parsed.coins) || 0,
         soundEnabled: parsed.soundEnabled !== false,
         selectedSkin: skins.some(s => s.id === parsed.selectedSkin) ? parsed.selectedSkin : 'classic',
         unlockedSkins: unlocked.includes('classic') ? unlocked : ['classic', ...unlocked],
-        leaderboard: normalizeLeaderboard(parsed.leaderboard)
+        leaderboard: normalizeLeaderboard(parsed.leaderboard),
+        upgrades: {
+            quickCharge: typeof loadedUpgrades.quickCharge === 'number' ? loadedUpgrades.quickCharge : 0,
+            deepPockets: typeof loadedUpgrades.deepPockets === 'number' ? loadedUpgrades.deepPockets : 0
+        }
     };
 }
 
@@ -76,10 +96,9 @@ function normalizeLeaderboard(entries) {
 }
 
 function persistSave() { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); }
-function initializeUi() { updateSoundButton(); renderSkins(); renderLeaderboard(); updateHud(); updateChallengeUI(); showMenu(); scheduleIdlePrompt(); }
+function initializeUi() { updateSoundButton(); renderSkins(); renderUpgrades(); renderLeaderboard(); updateHud(); updateChallengeUI(); showMenu(); scheduleIdlePrompt(); }
 
 function attachEvents() {
-    // Desktop keyboard listeners
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].includes(e.code)) e.preventDefault();
@@ -98,15 +117,12 @@ function attachEvents() {
     muteButton.addEventListener('click', () => { save.soundEnabled = !save.soundEnabled; persistSave(); updateSoundButton(); });
     shareButton.addEventListener('click', () => { if (game.score > 0 || game.bestScore > 0) shareScore(Math.max(game.score, game.bestScore)); });
     
-    // NEW MOBILE DRAG/SWIPE SYSTEM
     canvas.addEventListener('touchstart', e => {
         if(e.cancelable) e.preventDefault();
-        unlockAudio();
-        clearIdlePrompt();
+        unlockAudio(); clearIdlePrompt();
         if(game.state !== 'running') return;
         const touch = e.touches[0];
-        touchState.lastX = touch.clientX;
-        touchState.startY = touch.clientY;
+        touchState.lastX = touch.clientX; touchState.startY = touch.clientY;
     }, { passive: false });
 
     canvas.addEventListener('touchmove', e => {
@@ -114,30 +130,26 @@ function attachEvents() {
         if(game.state !== 'running') return;
         const touch = e.touches[0];
         
-        // Handle Horizontal Drag
         if(touchState.lastX !== null) {
             const deltaX = touch.clientX - touchState.lastX;
-            // Scale finger movement to canvas size
             const scale = canvas.width / canvas.clientWidth;
-            player.x += deltaX * scale * 1.4; // 1.4 multiplier for fast, snappy dragging
+            player.x += deltaX * scale * 1.4; 
             player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
             touchState.lastX = touch.clientX;
         }
 
-        // Handle Vertical Swipe for Jump
         if(touchState.startY !== null) {
             const deltaY = touchState.startY - touch.clientY;
-            if(deltaY > 35) { // 35px threshold for an upward swipe
+            if(deltaY > 35) { 
                 if(player.grounded) jump();
-                touchState.startY = touch.clientY; // reset so it doesn't double-trigger
+                touchState.startY = touch.clientY; 
             }
         }
     }, { passive: false });
 
     canvas.addEventListener('touchend', e => {
         if(e.cancelable) e.preventDefault();
-        touchState.lastX = null;
-        touchState.startY = null;
+        touchState.lastX = null; touchState.startY = null;
     }, { passive: false });
 }
 
@@ -166,9 +178,40 @@ function handleSkinAction(skinId) {
         game.coins -= skin.price; save.coins = game.coins;
         save.unlockedSkins = [...new Set([...save.unlockedSkins, skin.id])];
         statusEl.textContent = `${skin.name} unlocked.`;
-        playStack([{ frequency: 620, duration: .06, type: 'square', volume: .03 }, { frequency: 880, duration: .08, type: 'triangle', volume: .028, delay: .03 }]);
+        playStack([{ frequency: 620, duration: .06, type: 'square', volume: .1 }, { frequency: 880, duration: .08, type: 'triangle', volume: .08, delay: .03 }]);
     }
     save.selectedSkin = skin.id; persistSave(); renderSkins(); updateHud();
+}
+
+// NEW: Upgrades Render Function
+function renderUpgrades() {
+    upgradesGrid.innerHTML = '';
+    storeUpgrades.forEach(upg => {
+        const level = save.upgrades[upg.id];
+        const isMax = level >= upg.maxLevel;
+        const price = isMax ? 'MAX' : upg.prices[level];
+        const card = document.createElement('div');
+        card.className = `skin-card`;
+        card.innerHTML = `<div class="skin-top">
+            <div class="skin-meta"><strong>${escapeHtml(upg.name)} (Lv ${level})</strong><span>${escapeHtml(upg.desc)}</span></div>
+        </div>
+        <button type="button" class="${isMax ? 'secondary-button' : ''}" ${isMax ? 'disabled' : ''}>${isMax ? 'Maxed' : `Buy ${price}`}</button>`;
+        if (!isMax) card.querySelector('button').addEventListener('click', () => handleUpgradeAction(upg.id));
+        upgradesGrid.appendChild(card);
+    });
+}
+
+function handleUpgradeAction(id) {
+    const upg = storeUpgrades.find(u => u.id === id);
+    const level = save.upgrades[id];
+    if (level >= upg.maxLevel) return;
+    const price = upg.prices[level];
+    if (game.coins < price) { statusEl.textContent = `Need ${price - game.coins} more credits.`; return; }
+    
+    game.coins -= price; save.coins = game.coins;
+    save.upgrades[id] += 1;
+    persistSave(); renderUpgrades(); updateHud();
+    playStack([{ frequency: 720, duration: .08, type: 'square', volume: .1 }, { frequency: 1080, duration: .12, type: 'triangle', volume: .08, delay: .03 }]);
 }
 
 function renderLeaderboard() {
@@ -215,10 +258,12 @@ function updateChallengeUI() {
 }
 
 function resetGame() {
+    // Dynamically set starting requirement based on Upgrade shop level
+    const startReq = storeUpgrades.find(u => u.id === 'quickCharge').effects[save.upgrades.quickCharge];
     Object.assign(game, {
         score: 0, elapsed: 0, spawnTimer: 0, spawnInterval: .92, enemySpeedBonus: 0, combo: 0, flashAlpha: 0, 
         celebrationText: '', celebrationAccent: '#ffd45f', celebrationTimer: 0, celebrationDuration: 0, 
-        powerJumpCharges: 0, nextPowerJumpScore: 25, praiseMilestone: 10, difficultyMilestone: 18, 
+        powerJumpCharges: 0, nextPowerJumpScore: startReq, praiseMilestone: 10, difficultyMilestone: 18, 
         difficultyStage: 0, lastSmashValue: 0, lastTime: 0, screenShake: 0, pulseTimer: 0
     });
     Object.assign(player, { x: playerStart.x, y: playerStart.y, dy: 0, grounded: true, squash: 1, stretch: 1, blinkTimer: 1 + Math.random() * 2, blinkDuration: 0, powerJumpActive: false });
@@ -229,8 +274,8 @@ function resetGame() {
 
 function startGame() {
     resetGame(); game.state = 'running'; overlay.hidden = true; menuFeatures.hidden = false; shareButton.hidden = true; overlayStats.hidden = true;
-    statusEl.textContent = 'Dodge for survival points. Charged smash lands every 25 score.';
-    playStack([{ frequency: 360, duration: .06, type: 'square', volume: .028 }, { frequency: 560, duration: .08, type: 'triangle', volume: .028, delay: .04 }, { frequency: 820, duration: .09, type: 'triangle', volume: .024, delay: .08 }]);
+    statusEl.textContent = `Dodge for survival points. Charged smash lands every ${game.nextPowerJumpScore} score.`;
+    playStack([{ frequency: 360, duration: .06, type: 'square', volume: .08 }, { frequency: 560, duration: .08, type: 'triangle', volume: .08, delay: .04 }, { frequency: 820, duration: .09, type: 'triangle', volume: .06, delay: .08 }]);
 }
 
 function pauseGame() {
@@ -250,11 +295,12 @@ function resumeGame() { game.state = 'running'; overlay.hidden = true; statusEl.
 
 function showMenu() {
     game.state = 'menu';
+    const startReq = storeUpgrades.find(u => u.id === 'quickCharge').effects[save.upgrades.quickCharge];
     setOverlay({
-        title: 'Ready to dodge?', message: 'Move left and right, jump over closing lanes, and spend a charged smash on the right brick at the right time.', flavor: 'Fast runs. Clear stakes. No extra fluff.', buttonLabel: 'Start Run', showStats: false, showShare: false,
+        title: 'Ready to dodge?', message: 'Move left and right, jump over closing lanes, and spend a charged smash on the right block at the right time.', flavor: 'Fast runs. Clear stakes. No extra fluff.', buttonLabel: 'Start Run', showStats: false, showShare: false,
         features: [
-            { title: 'Dodge = +1', body: 'Every brick you survive adds one point and pushes the heat upward.' },
-            { title: 'Charged smash = brick value', body: 'Break the right numbered brick at the right moment and cash the number on its face.' }
+            { title: 'Dodge = +1', body: 'Every block you survive adds one point and pushes the heat upward.' },
+            { title: 'Charged smash = block value', body: `Survive ${startReq} points to charge. Break a numbered block to cash its exact value.` }
         ]
     });
     statusEl.textContent = 'Press Start Run to drop into the lane.'; scheduleIdlePrompt();
@@ -284,7 +330,7 @@ function endGame() {
     
     if (game.score > 0) insertLeaderboardEntry({ name: 'You', score: game.score, tag: isNewBest ? 'Fresh best run' : `Last run ${Math.max(1, Math.round(game.elapsed))}s`, isPlayer: true });
     
-    persistSave(); renderLeaderboard(); renderSkins(); updateHud(); updateChallengeUI();
+    persistSave(); renderLeaderboard(); renderSkins(); renderUpgrades(); updateHud(); updateChallengeUI();
     
     overlayScore.textContent = String(game.score); overlayBest.textContent = String(game.bestScore); overlayCredits.textContent = String(earnedCredits);
     
@@ -305,10 +351,10 @@ function insertLeaderboardEntry(entry) { save.leaderboard = save.leaderboard.fil
 function getRunReaction(score, elapsed, isNewBest, lastSmashValue) {
     const seconds = Math.max(1, Math.round(elapsed));
     if (isNewBest && score >= 50) return `You lasted ${seconds} seconds and bent the whole board around you.${lastSmashValue > 0 ? ` That ${lastSmashValue}-point smash helped.` : ''}`;
-    if (score < 5) return `You lasted ${seconds} seconds. The bricks are not impressed.`;
-    if (score < 15) return `You lasted ${seconds} seconds. The board smelled hesitation, which is rude but fair.`;
-    if (score < 30) return `You lasted ${seconds} seconds. One sharper lane switch and this turns into a statement run.`;
-    if (score < 60) return `You lasted ${seconds} seconds. That was close to becoming a leaderboard problem for everybody else.`;
+    if (score < 5) return `You lasted ${seconds} seconds. The board is not impressed.`;
+    if (score < 15) return `You lasted ${seconds} seconds. The lane smelled hesitation, which is rude but fair.`;
+    if (score < 30) return `You lasted ${seconds} seconds. One sharper dodge and this turns into a statement run.`;
+    if (score < 60) return `You lasted ${seconds} seconds. That was close to becoming a leaderboard problem.`;
     return `You lasted ${seconds} seconds. The board is officially nervous.`;
 }
 
@@ -319,24 +365,14 @@ function getHeatLabel() { return heatLabels[Math.min(game.difficultyStage, heatL
 function jump() {
     player.dy = player.jumpPower; player.grounded = false; player.stretch = 1.18; player.squash = .88; player.powerJumpActive = game.powerJumpCharges > 0;
     if (player.powerJumpActive) {
-        game.powerJumpCharges -= 1; triggerCelebration('SMASH READY', '#7cf0b6', .82);
-        statusEl.textContent = game.powerJumpCharges > 0 ? `${game.powerJumpCharges} charged smash${game.powerJumpCharges === 1 ? '' : 'es'} still in reserve.` : 'Charged smash spent. Hit the next 25-point mark for another.';
-        playStack([{ frequency: 420, duration: .05, type: 'square', volume: .032 }, { frequency: 630, duration: .06, type: 'sawtooth', volume: .026, delay: .02 }, { frequency: 920, duration: .08, type: 'triangle', volume: .024, delay: .05 }]);
+        game.powerJumpCharges -= 1; 
+        triggerCelebration('SMASH READY', '#7cf0b6', .82, 'Smash ready!');
+        statusEl.textContent = game.powerJumpCharges > 0 ? `${game.powerJumpCharges} charged smash${game.powerJumpCharges === 1 ? '' : 'es'} still in reserve.` : 'Charged smash spent. Get the next score mark for another.';
+        playStack([{ frequency: 420, duration: .05, type: 'square', volume: .1 }, { frequency: 630, duration: .06, type: 'sawtooth', volume: .08, delay: .02 }, { frequency: 920, duration: .08, type: 'triangle', volume: .07, delay: .05 }]);
     } else {
-        playStack([{ frequency: 540, duration: .05, type: 'square', volume: .024 }, { frequency: 760, duration: .04, type: 'triangle', volume: .018, delay: .02 }]);
+        playStack([{ frequency: 540, duration: .05, type: 'square', volume: .06 }, { frequency: 760, duration: .04, type: 'triangle', volume: .05, delay: .02 }]);
     }
     burst(particles, player.x + player.size / 2, player.y + player.size, 7, getSelectedSkin().accent, 44);
-}
-
-function spawnEnemy(target = enemies, speedBonus = game.enemySpeedBonus, width = canvas.width) {
-    const size = 18 + Math.random() * 28, label = 2 + Math.floor(Math.random() * 10);
-    const isTracker = target === enemies && game.difficultyStage >= 2 && Math.random() < 0.25;
-    const color = isTracker ? '#b252ff' : (label >= 8 ? '#ff7b66' : '#ff5454');
-    
-    target.push({
-        x: Math.random() * (width - size), y: -size, size, speed: 190 + Math.random() * 110 + speedBonus, 
-        color, label, spin: (Math.random() - .5) * .08, wobble: Math.random() * Math.PI * 2, isTracker
-    });
 }
 
 function awardDodge(enemy) {
@@ -344,12 +380,12 @@ function awardDodge(enemy) {
     if (game.combo > 0 && game.combo % 8 === 0) {
         game.coins += 1; save.coins = game.coins;
         statusEl.textContent = `Combo bonus. ${game.combo} clean dodges banked an extra credit.`;
-        playStack([{ frequency: 710, duration: .05, type: 'triangle', volume: .028 }, { frequency: 980, duration: .04, type: 'triangle', volume: .022, delay: .03 }]);
+        playStack([{ frequency: 710, duration: .05, type: 'triangle', volume: .08 }, { frequency: 980, duration: .04, type: 'triangle', volume: .06, delay: .03 }]);
     } else if (game.score % 6 === 0) {
         statusEl.textContent = `Heat climbing. Stay alive to unlock the next charged smash at ${game.nextPowerJumpScore}.`;
-        playStack([{ frequency: 640, duration: .03, type: 'triangle', volume: .02 }, { frequency: 860, duration: .025, type: 'triangle', volume: .014, delay: .02 }]);
+        playStack([{ frequency: 640, duration: .03, type: 'triangle', volume: .06 }, { frequency: 860, duration: .025, type: 'triangle', volume: .05, delay: .02 }]);
     } else {
-        playStack([{ frequency: 590, duration: .025, type: 'triangle', volume: .018 }, { frequency: 780, duration: .022, type: 'triangle', volume: .012, delay: .015 }]);
+        playStack([{ frequency: 590, duration: .025, type: 'triangle', volume: .05 }, { frequency: 780, duration: .022, type: 'triangle', volume: .04, delay: .015 }]);
     }
     burst(particles, enemy.x + enemy.size / 2, canvas.height - 10, 4, enemy.color, 32);
     handleMilestones(); updateHud(); updateChallengeUI();
@@ -357,39 +393,56 @@ function awardDodge(enemy) {
 
 function awardPowerJumpBreak(enemy) {
     game.score += enemy.label; game.combo += 3; game.lastSmashValue = enemy.label;
-    game.screenShake = 0.25; 
+    game.screenShake = 0.35; 
     
-    triggerCelebration(`+${enemy.label} SMASH`, '#7cf0b6', .78);
+    // NEW: TTS Callout for Smash
+    triggerCelebration(`+${enemy.label} SMASH`, '#7cf0b6', .78, `Smashed for ${enemy.label}!`);
     burst(particles, enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, 18, '#fff1b7', 98);
     burst(particles, enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, 14, enemy.color, 76);
-    statusEl.textContent = `Brick ${enemy.label} shattered for ${enemy.label} points.`;
+    statusEl.textContent = `Block ${enemy.label} shattered for ${enemy.label} points.`;
     player.powerJumpActive = false;
-    playStack([{ frequency: 240, endFrequency: 180, duration: .1, type: 'sawtooth', volume: .026 }, { frequency: 520, duration: .05, type: 'square', volume: .024, delay: .02 }, { frequency: 940, duration: .09, type: 'triangle', volume: .026, delay: .04 }]);
+    playStack([{ frequency: 240, endFrequency: 180, duration: .1, type: 'sawtooth', volume: .08 }, { frequency: 520, duration: .05, type: 'square', volume: .08, delay: .02 }, { frequency: 940, duration: .09, type: 'triangle', volume: .08, delay: .04 }]);
     handleMilestones(); updateHud(); updateChallengeUI();
 }
 
 function handleMilestones() {
+    const chargeReq = storeUpgrades.find(u => u.id === 'quickCharge').effects[save.upgrades.quickCharge];
+    const maxCharges = storeUpgrades.find(u => u.id === 'deepPockets').effects[save.upgrades.deepPockets];
+
     while (game.score >= game.praiseMilestone) {
-        triggerCelebration(`${game.praiseMilestone} LOCKED`, '#ffd45f', .92);
+        // NEW: TTS Callout for Level Up
+        triggerCelebration(`${game.praiseMilestone} LOCKED`, '#ffd45f', .92, `Awesome, well done! Level ${game.praiseMilestone} locked!`);
         burst(particles, player.x + player.size / 2, player.y, 12, '#ffd45f', 58);
-        playStack([{ frequency: 720, duration: .04, type: 'triangle', volume: .018 }, { frequency: 860, duration: .05, type: 'triangle', volume: .022, delay: .03 }, { frequency: 1020, duration: .06, type: 'triangle', volume: .024, delay: .06 }]);
+        playStack([{ frequency: 720, duration: .04, type: 'triangle', volume: .06 }, { frequency: 860, duration: .05, type: 'triangle', volume: .07, delay: .03 }, { frequency: 1020, duration: .06, type: 'triangle', volume: .07, delay: .06 }]);
         game.praiseMilestone += 10;
     }
     while (game.score >= game.difficultyMilestone) {
         game.difficultyStage += 1; game.difficultyMilestone += 18; game.flashAlpha = .13;
         statusEl.textContent = `Heat spike. ${getHeatLabel()} mode is live.`;
-        playStack([{ frequency: 280, duration: .05, type: 'sawtooth', volume: .02 }, { frequency: 420, duration: .05, type: 'square', volume: .022, delay: .03 }, { frequency: 620, duration: .06, type: 'triangle', volume: .02, delay: .06 }]);
+        playStack([{ frequency: 280, duration: .05, type: 'sawtooth', volume: .06 }, { frequency: 420, duration: .05, type: 'square', volume: .07, delay: .03 }, { frequency: 620, duration: .06, type: 'triangle', volume: .06, delay: .06 }]);
     }
     while (game.score >= game.nextPowerJumpScore) {
-        game.powerJumpCharges += 1; game.nextPowerJumpScore += 25;
-        triggerCelebration('CHARGED JUMP', '#7cf0b6', 1.08);
-        burst(particles, player.x + player.size / 2, player.y, 16, '#7cf0b6', 76);
-        statusEl.textContent = 'Charged smash unlocked. Jump into a numbered brick to cash its full value.';
-        playStack([{ frequency: 520, duration: .05, type: 'square', volume: .026 }, { frequency: 720, duration: .06, type: 'square', volume: .024, delay: .03 }, { frequency: 980, duration: .1, type: 'triangle', volume: .026, delay: .06 }]);
+        game.nextPowerJumpScore += chargeReq;
+        if (game.powerJumpCharges < maxCharges) {
+            game.powerJumpCharges += 1;
+            // NEW: TTS Callout for Unlock
+            triggerCelebration('CHARGED JUMP', '#7cf0b6', 1.08, 'Charged jump ready!');
+            burst(particles, player.x + player.size / 2, player.y, 16, '#7cf0b6', 76);
+            statusEl.textContent = 'Charged smash unlocked. Jump into a numbered block to cash its full value.';
+            playStack([{ frequency: 520, duration: .05, type: 'square', volume: .08 }, { frequency: 720, duration: .06, type: 'square', volume: .07, delay: .03 }, { frequency: 980, duration: .1, type: 'triangle', volume: .08, delay: .06 }]);
+        }
     }
 }
 
-function triggerCelebration(text, accent, duration) { game.celebrationText = text; game.celebrationAccent = accent; game.celebrationDuration = duration; game.celebrationTimer = duration; }
+// NEW: Added Text-To-Speech integration via `speechText` parameter
+function triggerCelebration(text, accent, duration, speechText) { 
+    game.celebrationText = text; game.celebrationAccent = accent; game.celebrationDuration = duration; game.celebrationTimer = duration; 
+    if(save.soundEnabled && speechText && window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(speechText);
+        utterance.volume = 1; utterance.rate = 1.1;
+        window.speechSynthesis.speak(utterance);
+    }
+}
 
 function update(dt) {
     updatePreview(dt);
@@ -407,10 +460,9 @@ function update(dt) {
     const pulseInterval = Math.max(.22, .95 - game.difficultyStage * .15 - game.elapsed * .004);
     if (game.pulseTimer >= pulseInterval) {
         game.pulseTimer -= pulseInterval;
-        playStack([{ frequency: 65 + game.difficultyStage * 8, duration: .12, type: 'sine', volume: .018 }]);
+        playStack([{ frequency: 65 + game.difficultyStage * 8, duration: .12, type: 'sine', volume: .05 }]);
     }
 
-    // Keyboard movement is still supported
     const movingLeft = keys.ArrowLeft || keys.KeyA;
     const movingRight = keys.ArrowRight || keys.KeyD;
     const wantsJump = keys.Space || keys.ArrowUp || keys.KeyW;
@@ -430,12 +482,37 @@ function update(dt) {
     if (player.y + player.size >= canvas.height) {
         if (!player.grounded && player.dy > 120) {
             burst(particles, player.x + player.size / 2, canvas.height - 4, 8, getSelectedSkin().accent, 42);
-            playStack([{ frequency: 200, duration: .035, type: 'triangle', volume: .02 }]);
+            playStack([{ frequency: 200, duration: .035, type: 'triangle', volume: .06 }]);
         }
         player.y = canvas.height - player.size; player.dy = 0; player.grounded = true; player.squash = 1.13; player.stretch = .92; player.powerJumpActive = false;
     }
     
-    while (game.spawnTimer >= game.spawnInterval) { game.spawnTimer -= game.spawnInterval; spawnEnemy(); }
+    // NEW: Centralized Spawner with Squeeze and Jackpot hazards
+    while (game.spawnTimer >= game.spawnInterval) { 
+        game.spawnTimer -= game.spawnInterval; 
+        const isSqueeze = game.difficultyStage >= 1 && Math.random() < 0.12;
+        
+        if (isSqueeze) {
+            const gapIndex = Math.floor(Math.random() * 5); 
+            const blockW = canvas.width / 5;
+            for(let i=0; i<5; i++) {
+                if (i === gapIndex) continue;
+                enemies.push({ x: i * blockW + 5, y: -40, size: blockW - 10, speed: 190 + game.enemySpeedBonus, color: '#ff5454', label: 2 + Math.floor(Math.random()*5), spin: 0, wobble: 0, isTracker: false, shape: 'square', emoji: null, isJackpot: false });
+            }
+        } else {
+            const isJackpot = game.difficultyStage >= 1 && Math.random() < 0.08;
+            const size = 18 + Math.random() * 28;
+            const label = isJackpot ? 50 : 2 + Math.floor(Math.random() * 10);
+            const isTracker = !isJackpot && game.difficultyStage >= 2 && Math.random() < 0.25;
+            const shapeTypes = ['square', 'circle', 'triangle', 'fruit'];
+            const emojis = ['🍎', '🍉', '🍌', '🍒'];
+            const shape = isJackpot ? 'diamond' : shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+            const emoji = shape === 'fruit' ? emojis[Math.floor(Math.random() * emojis.length)] : null;
+            const color = isJackpot ? '#ffd45f' : (isTracker ? '#b252ff' : (label >= 8 ? '#ff7b66' : '#ff5454'));
+            
+            enemies.push({ x: Math.random() * (canvas.width - size), y: -size, size, speed: (isJackpot ? 320 : 190) + Math.random() * 110 + game.enemySpeedBonus, color, label, spin: (Math.random() - .5) * .08, wobble: Math.random() * Math.PI * 2, isTracker, shape, emoji, isJackpot });
+        }
+    }
     
     enemies = enemies.filter(enemy => {
         enemy.y += enemy.speed * dt;
@@ -470,7 +547,14 @@ function updatePreview(dt) {
     else if (p.blinkTimer <= 0) { p.blinkDuration = .1; p.blinkTimer = 1 + Math.random() * 1.8; }
     p.squash += (1 - p.squash) * 10 * dt; p.stretch += (1 - p.stretch) * 10 * dt;
     if (p.y + p.size >= floor) { p.y = floor - p.size; p.dy = 0; p.grounded = true; p.powerJumpActive = false; p.squash = 1.1; p.stretch = .94; }
-    while (preview.spawnTimer >= preview.spawnInterval) { preview.spawnTimer -= preview.spawnInterval; spawnEnemy(preview.enemies, 42, previewCanvas.width); }
+    
+    // Spawn simple squares for preview
+    while (preview.spawnTimer >= preview.spawnInterval) { 
+        preview.spawnTimer -= preview.spawnInterval; 
+        const size = 18 + Math.random() * 28, label = 2 + Math.floor(Math.random() * 10);
+        preview.enemies.push({ x: Math.random() * (previewCanvas.width - size), y: -size, size, speed: 190 + Math.random() * 110 + 42, color: label >= 8 ? '#ff7b66' : '#ff5454', label, spin: (Math.random() - .5) * .08, wobble: Math.random() * Math.PI * 2, shape: 'square' });
+    }
+    
     preview.enemies = preview.enemies.filter(enemy => {
         enemy.y += enemy.speed * dt * .85; enemy.x += Math.sin(preview.elapsed * 2.1 + enemy.wobble) * enemy.spin * 10;
         const collided = p.x < enemy.x + enemy.size && p.x + p.size > enemy.x && p.y < enemy.y + enemy.size && p.y + p.size > enemy.y;
@@ -498,9 +582,13 @@ function burst(list, x, y, count, color, force) {
     }
 }
 
+// NEW: Dynamic Background color shift
 function drawBackground(target, width, height, elapsed, flashAlpha) {
+    const heatIdx = Math.min(game.difficultyStage, 4);
+    const colors = heatColors[heatIdx];
+    
     const g = target.createLinearGradient(0, 0, 0, height);
-    g.addColorStop(0, '#10213e'); g.addColorStop(.45, '#081326'); g.addColorStop(1, '#03060d');
+    g.addColorStop(0, colors[0]); g.addColorStop(.45, colors[1]); g.addColorStop(1, colors[2]);
     target.fillStyle = g; target.fillRect(0, 0, width, height);
     
     const halo = target.createRadialGradient(width * .5, height * .18, 18, width * .5, height * .18, width * .75);
@@ -542,21 +630,47 @@ function drawPlayer(target, actor, skin) {
     target.restore();
 }
 
+// NEW: Shape Mixer Drawing Logic
 function drawEnemies(target, list, elapsed, height) {
     list.forEach(enemy => {
         const pulse = .84 + Math.sin(elapsed * 4 + enemy.wobble) * .16, size = enemy.size;
-        const g = target.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
-        g.addColorStop(0, '#ffe6de'); g.addColorStop(.35, enemy.color); g.addColorStop(1, shadeColor(enemy.color, -34));
         
         target.save();
         target.translate(enemy.x + size / 2, enemy.y + size / 2);
         target.rotate(enemy.y / height * enemy.spin * 6);
-        target.fillStyle = g; target.shadowBlur = 16 + pulse * 10; target.shadowColor = `${enemy.color}aa`;
-        target.fillRect(-size / 2, -size / 2, size, size);
-        target.fillStyle = 'rgba(255,255,255,.16)'; target.fillRect(-size * .28, -size * .3, size * .18, size * .58);
+        target.shadowBlur = 16 + pulse * 10; target.shadowColor = `${enemy.color}aa`;
         
-        target.strokeStyle = enemy.isTracker ? '#f2c2ff' : (enemy.label >= 8 ? '#ffe3a8' : '#ffc4b9');
-        target.lineWidth = 2; target.strokeRect(-size / 2, -size / 2, size, size);
+        if (enemy.shape === 'fruit') {
+            target.font = `${size * 0.9}px Arial`;
+            target.textAlign = 'center'; target.textBaseline = 'middle';
+            target.fillText(enemy.emoji, 0, 0);
+            
+            // Background dot so text is readable over the emoji
+            target.fillStyle = 'rgba(0,0,0,0.6)';
+            target.beginPath(); target.arc(0, 0, size * 0.4, 0, Math.PI * 2); target.fill();
+        } else {
+            const g = target.createLinearGradient(-size / 2, -size / 2, size / 2, size / 2);
+            g.addColorStop(0, '#ffe6de'); g.addColorStop(.35, enemy.color); g.addColorStop(1, shadeColor(enemy.color, -34));
+            target.fillStyle = g;
+            target.strokeStyle = enemy.isJackpot ? '#ffffff' : (enemy.isTracker ? '#f2c2ff' : (enemy.label >= 8 ? '#ffe3a8' : '#ffc4b9'));
+            target.lineWidth = 2;
+            
+            target.beginPath();
+            if (enemy.shape === 'circle') {
+                target.arc(0, 0, size/2, 0, Math.PI * 2);
+            } else if (enemy.shape === 'triangle') {
+                target.moveTo(0, -size/2); target.lineTo(size/2, size/2); target.lineTo(-size/2, size/2); target.closePath();
+            } else if (enemy.shape === 'diamond') {
+                target.moveTo(0, -size/2); target.lineTo(size/2, 0); target.lineTo(0, size/2); target.lineTo(-size/2, 0); target.closePath();
+            } else {
+                target.rect(-size / 2, -size / 2, size, size);
+            }
+            target.fill(); target.stroke();
+            
+            if (enemy.shape === 'square') {
+                target.fillStyle = 'rgba(255,255,255,.16)'; target.fillRect(-size * .28, -size * .3, size * .18, size * .58);
+            }
+        }
         
         target.fillStyle = '#fffaf1'; target.font = `bold ${Math.max(10, size * .34)}px "Press Start 2P"`;
         target.textAlign = 'center'; target.textBaseline = 'middle';
@@ -632,7 +746,11 @@ function drawPreviewHud() {
 function unlockAudio() {
     if (audio.context) return;
     const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return;
-    audio.context = new Ctx(); audio.master = audio.context.createGain(); audio.master.gain.value = .08; audio.master.connect(audio.context.destination);
+    // NEW: Volume increased from .08 to .35
+    audio.context = new Ctx(); audio.master = audio.context.createGain(); audio.master.gain.value = .35; audio.master.connect(audio.context.destination);
+    
+    // Attempt to wake up Speech Synthesis early
+    if (window.speechSynthesis) window.speechSynthesis.getVoices();
 }
 
 function playStack(notes) {
@@ -646,7 +764,7 @@ function playStack(notes) {
     });
 }
 
-function playDeathSound() { playStack([{ frequency: 260, endFrequency: 120, duration: .22, type: 'sawtooth', volume: .03 }, { frequency: 430, endFrequency: 180, duration: .18, type: 'square', volume: .022, delay: .03 }]); }
+function playDeathSound() { playStack([{ frequency: 260, endFrequency: 120, duration: .22, type: 'sawtooth', volume: .1 }, { frequency: 430, endFrequency: 180, duration: .18, type: 'square', volume: .08, delay: .03 }]); }
 function shareScore(score) { window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I scored ${score} on Square Dodger - beat me: ${SHARE_URL}`)}`, '_blank', 'noopener,noreferrer'); }
 function shadeColor(hex, amount) {
     const n = hex.replace('#', ''); if (n.length !== 6) return hex;
