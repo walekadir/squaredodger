@@ -7,10 +7,9 @@ const overlayStats = document.getElementById('overlay-stats'), overlayScore = do
 const menuFeatures = document.getElementById('menu-features'), actionButton = document.getElementById('action-button'), heroStartButton = document.getElementById('hero-start-button'), muteButton = document.getElementById('mute-button'), shareButton = document.getElementById('share-button');
 const challengeList = document.getElementById('challenge-list'), challengeFill = document.getElementById('challenge-progress-fill'), challengeLabel = document.getElementById('challenge-progress-label'), challengeCopy = document.getElementById('challenge-progress-copy');
 const leaderboardList = document.getElementById('leaderboard-list'), skinsGrid = document.getElementById('skins-grid'), idlePrompt = document.getElementById('idle-prompt');
-const controlButtons = document.querySelectorAll('[data-control]');
 
 const STORAGE_KEY = 'square-dodger-save-v3', LEGACY_KEY = 'square-dodger-save-v2', SHARE_URL = 'https://jidsgame.netlify.app/';
-const keys = {}, touchState = { left: false, right: false }, particles = [];
+const keys = {}, touchState = { left: false, right: false, lastX: null, startY: null }, particles = [];
 let enemies = [], idleTimer = null;
 
 const challengeTiers = [
@@ -34,7 +33,8 @@ const skins = [
 ];
 
 const save = loadSave();
-const playerStart = { x: 185, y: 450 };
+// Start Y adapted for the new taller 640px canvas
+const playerStart = { x: 185, y: 590 };
 
 const game = {
     score: 0, bestScore: save.bestScore, coins: save.coins, state: 'menu', elapsed: 0, spawnTimer: 0, 
@@ -78,8 +78,8 @@ function normalizeLeaderboard(entries) {
 function persistSave() { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); }
 function initializeUi() { updateSoundButton(); renderSkins(); renderLeaderboard(); updateHud(); updateChallengeUI(); showMenu(); scheduleIdlePrompt(); }
 
-// MOBILE OPTIMIZATION: Entirely rewritten input event listeners
 function attachEvents() {
+    // Desktop keyboard listeners
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].includes(e.code)) e.preventDefault();
@@ -89,10 +89,8 @@ function attachEvents() {
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
     
-    // Clear prompts on general page interactions
     document.addEventListener('pointerdown', clearIdlePrompt, { passive: true });
     document.addEventListener('mousemove', () => { if (!idlePrompt.hidden) clearIdlePrompt(); }, { passive: true });
-    document.addEventListener('touchstart', clearIdlePrompt, { passive: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'running') pauseGame(); });
     
     actionButton.addEventListener('click', handlePrimaryAction);
@@ -100,30 +98,47 @@ function attachEvents() {
     muteButton.addEventListener('click', () => { save.soundEnabled = !save.soundEnabled; persistSave(); updateSoundButton(); });
     shareButton.addEventListener('click', () => { if (game.score > 0 || game.bestScore > 0) shareScore(Math.max(game.score, game.bestScore)); });
     
-    controlButtons.forEach(button => {
-        const control = button.dataset.control;
+    // NEW MOBILE DRAG/SWIPE SYSTEM
+    canvas.addEventListener('touchstart', e => {
+        if(e.cancelable) e.preventDefault();
+        unlockAudio();
+        clearIdlePrompt();
+        if(game.state !== 'running') return;
+        const touch = e.touches[0];
+        touchState.lastX = touch.clientX;
+        touchState.startY = touch.clientY;
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+        if(e.cancelable) e.preventDefault();
+        if(game.state !== 'running') return;
+        const touch = e.touches[0];
         
-        const on = e => { 
-            if(e.cancelable) e.preventDefault(); 
-            clearIdlePrompt(); 
-            unlockAudio(); 
-            handleControlPress(control); 
-        };
-        const off = e => { 
-            if(e.cancelable) e.preventDefault(); 
-            handleControlRelease(control); 
-        };
-        
-        // Raw touch events are required to bypass mobile browser scrolling heuristics
-        button.addEventListener('touchstart', on, { passive: false });
-        button.addEventListener('touchend', off, { passive: false });
-        button.addEventListener('touchcancel', off, { passive: false });
-        
-        // Fallback for clicking the on-screen buttons via desktop mouse
-        button.addEventListener('mousedown', on);
-        button.addEventListener('mouseup', off);
-        button.addEventListener('mouseleave', off);
-    });
+        // Handle Horizontal Drag
+        if(touchState.lastX !== null) {
+            const deltaX = touch.clientX - touchState.lastX;
+            // Scale finger movement to canvas size
+            const scale = canvas.width / canvas.clientWidth;
+            player.x += deltaX * scale * 1.4; // 1.4 multiplier for fast, snappy dragging
+            player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+            touchState.lastX = touch.clientX;
+        }
+
+        // Handle Vertical Swipe for Jump
+        if(touchState.startY !== null) {
+            const deltaY = touchState.startY - touch.clientY;
+            if(deltaY > 35) { // 35px threshold for an upward swipe
+                if(player.grounded) jump();
+                touchState.startY = touch.clientY; // reset so it doesn't double-trigger
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+        if(e.cancelable) e.preventDefault();
+        touchState.lastX = null;
+        touchState.startY = null;
+    }, { passive: false });
 }
 
 function handlePrimaryAction() { unlockAudio(); clearIdlePrompt(); if (game.state === 'paused') { resumeGame(); return; } startGame(); }
@@ -207,7 +222,9 @@ function resetGame() {
         difficultyStage: 0, lastSmashValue: 0, lastTime: 0, screenShake: 0, pulseTimer: 0
     });
     Object.assign(player, { x: playerStart.x, y: playerStart.y, dy: 0, grounded: true, squash: 1, stretch: 1, blinkTimer: 1 + Math.random() * 2, blinkDuration: 0, powerJumpActive: false });
-    particles.length = 0; enemies = []; touchState.left = false; touchState.right = false; updateHud(); updateChallengeUI();
+    particles.length = 0; enemies = []; 
+    touchState.lastX = null; touchState.startY = null; 
+    updateHud(); updateChallengeUI();
 }
 
 function startGame() {
@@ -217,7 +234,8 @@ function startGame() {
 }
 
 function pauseGame() {
-    game.state = 'paused'; touchState.left = false; touchState.right = false;
+    game.state = 'paused'; 
+    touchState.lastX = null; touchState.startY = null;
     setOverlay({
         title: 'Paused', message: 'The lane is frozen. Jump back in when you are ready.', flavor: 'Your score and charges are waiting.', buttonLabel: 'Resume Run', showStats: false, showShare: false,
         features: [
@@ -233,7 +251,7 @@ function resumeGame() { game.state = 'running'; overlay.hidden = true; statusEl.
 function showMenu() {
     game.state = 'menu';
     setOverlay({
-        title: 'Ready to dodge?', message: 'Start with survival. Once you hit 25 points, your next jump can smash a numbered brick for its printed value.', flavor: 'Fast runs. Clear stakes. No extra fluff.', buttonLabel: 'Start Run', showStats: false, showShare: false,
+        title: 'Ready to dodge?', message: 'Move left and right, jump over closing lanes, and spend a charged smash on the right brick at the right time.', flavor: 'Fast runs. Clear stakes. No extra fluff.', buttonLabel: 'Start Run', showStats: false, showShare: false,
         features: [
             { title: 'Dodge = +1', body: 'Every brick you survive adds one point and pushes the heat upward.' },
             { title: 'Charged smash = brick value', body: 'Break the right numbered brick at the right moment and cash the number on its face.' }
@@ -259,7 +277,8 @@ function renderFeatureList(items) {
 
 function endGame() {
     const isNewBest = game.score > game.bestScore, earnedCredits = Math.max(3, Math.floor(game.score / 3) + Math.floor(game.combo / 6));
-    game.state = 'gameover'; game.coins += earnedCredits; touchState.left = false; touchState.right = false;
+    game.state = 'gameover'; game.coins += earnedCredits; 
+    touchState.lastX = null; touchState.startY = null;
     if (isNewBest) game.bestScore = game.score;
     save.bestScore = game.bestScore; save.coins = game.coins;
     
@@ -296,12 +315,6 @@ function getRunReaction(score, elapsed, isNewBest, lastSmashValue) {
 function getNextChallengeCopy(score) { const next = challengeTiers.find(t => score < t.target); return next ? `${Math.max(0, next.target - score)} more point${next.target - score === 1 ? '' : 's'} to hit ${next.title}.` : 'Legend is already cleared. Keep stretching the board.'; }
 function getCurrentChallengeLabel() { const next = challengeTiers.find(t => game.score < t.target); return next ? `${next.title} ${next.target}` : 'Legend cleared'; }
 function getHeatLabel() { return heatLabels[Math.min(game.difficultyStage, heatLabels.length - 1)]; }
-
-function handleControlPress(control) {
-    if (control === 'left' || control === 'right') touchState[control] = true;
-    if (control === 'jump' && player.grounded && game.state === 'running') jump();
-}
-function handleControlRelease(control) { if (control === 'left' || control === 'right') touchState[control] = false; }
 
 function jump() {
     player.dy = player.jumpPower; player.grounded = false; player.stretch = 1.18; player.squash = .88; player.powerJumpActive = game.powerJumpCharges > 0;
@@ -397,7 +410,10 @@ function update(dt) {
         playStack([{ frequency: 65 + game.difficultyStage * 8, duration: .12, type: 'sine', volume: .018 }]);
     }
 
-    const movingLeft = keys.ArrowLeft || keys.KeyA || touchState.left, movingRight = keys.ArrowRight || keys.KeyD || touchState.right, wantsJump = keys.Space || keys.ArrowUp || keys.KeyW;
+    // Keyboard movement is still supported
+    const movingLeft = keys.ArrowLeft || keys.KeyA;
+    const movingRight = keys.ArrowRight || keys.KeyD;
+    const wantsJump = keys.Space || keys.ArrowUp || keys.KeyW;
     
     if (movingLeft) player.x -= player.speed * dt;
     if (movingRight) player.x += player.speed * dt;
