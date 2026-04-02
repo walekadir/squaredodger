@@ -36,7 +36,6 @@ const skins = [
 const save = loadSave();
 const playerStart = { x: 185, y: 450 };
 
-// NEW GAME STATE: Added screenShake and pulseTimer
 const game = {
     score: 0, bestScore: save.bestScore, coins: save.coins, state: 'menu', elapsed: 0, spawnTimer: 0, 
     spawnInterval: .92, enemySpeedBonus: 0, lastTime: 0, combo: 0, flashAlpha: 0, celebrationText: '', 
@@ -79,6 +78,7 @@ function normalizeLeaderboard(entries) {
 function persistSave() { localStorage.setItem(STORAGE_KEY, JSON.stringify(save)); }
 function initializeUi() { updateSoundButton(); renderSkins(); renderLeaderboard(); updateHud(); updateChallengeUI(); showMenu(); scheduleIdlePrompt(); }
 
+// MOBILE OPTIMIZATION: Entirely rewritten input event listeners
 function attachEvents() {
     window.addEventListener('keydown', e => {
         keys[e.code] = true;
@@ -88,10 +88,13 @@ function attachEvents() {
         else if (e.code === 'Enter' && game.state !== 'running') handlePrimaryAction();
     });
     window.addEventListener('keyup', e => keys[e.code] = false);
+    
+    // Clear prompts on general page interactions
     document.addEventListener('pointerdown', clearIdlePrompt, { passive: true });
     document.addEventListener('mousemove', () => { if (!idlePrompt.hidden) clearIdlePrompt(); }, { passive: true });
     document.addEventListener('touchstart', clearIdlePrompt, { passive: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'running') pauseGame(); });
+    
     actionButton.addEventListener('click', handlePrimaryAction);
     heroStartButton.addEventListener('click', handlePrimaryAction);
     muteButton.addEventListener('click', () => { save.soundEnabled = !save.soundEnabled; persistSave(); updateSoundButton(); });
@@ -99,12 +102,27 @@ function attachEvents() {
     
     controlButtons.forEach(button => {
         const control = button.dataset.control;
-        const on = e => { e.preventDefault(); clearIdlePrompt(); unlockAudio(); handleControlPress(control); };
-        const off = e => { e.preventDefault(); handleControlRelease(control); };
-        button.addEventListener('pointerdown', on);
-        button.addEventListener('pointerup', off);
-        button.addEventListener('pointercancel', off);
-        button.addEventListener('pointerleave', off);
+        
+        const on = e => { 
+            if(e.cancelable) e.preventDefault(); 
+            clearIdlePrompt(); 
+            unlockAudio(); 
+            handleControlPress(control); 
+        };
+        const off = e => { 
+            if(e.cancelable) e.preventDefault(); 
+            handleControlRelease(control); 
+        };
+        
+        // Raw touch events are required to bypass mobile browser scrolling heuristics
+        button.addEventListener('touchstart', on, { passive: false });
+        button.addEventListener('touchend', off, { passive: false });
+        button.addEventListener('touchcancel', off, { passive: false });
+        
+        // Fallback for clicking the on-screen buttons via desktop mouse
+        button.addEventListener('mousedown', on);
+        button.addEventListener('mouseup', off);
+        button.addEventListener('mouseleave', off);
     });
 }
 
@@ -189,7 +207,7 @@ function resetGame() {
         difficultyStage: 0, lastSmashValue: 0, lastTime: 0, screenShake: 0, pulseTimer: 0
     });
     Object.assign(player, { x: playerStart.x, y: playerStart.y, dy: 0, grounded: true, squash: 1, stretch: 1, blinkTimer: 1 + Math.random() * 2, blinkDuration: 0, powerJumpActive: false });
-    particles.length = 0; enemies = []; updateHud(); updateChallengeUI();
+    particles.length = 0; enemies = []; touchState.left = false; touchState.right = false; updateHud(); updateChallengeUI();
 }
 
 function startGame() {
@@ -199,7 +217,7 @@ function startGame() {
 }
 
 function pauseGame() {
-    game.state = 'paused';
+    game.state = 'paused'; touchState.left = false; touchState.right = false;
     setOverlay({
         title: 'Paused', message: 'The lane is frozen. Jump back in when you are ready.', flavor: 'Your score and charges are waiting.', buttonLabel: 'Resume Run', showStats: false, showShare: false,
         features: [
@@ -241,7 +259,7 @@ function renderFeatureList(items) {
 
 function endGame() {
     const isNewBest = game.score > game.bestScore, earnedCredits = Math.max(3, Math.floor(game.score / 3) + Math.floor(game.combo / 6));
-    game.state = 'gameover'; game.coins += earnedCredits;
+    game.state = 'gameover'; game.coins += earnedCredits; touchState.left = false; touchState.right = false;
     if (isNewBest) game.bestScore = game.score;
     save.bestScore = game.bestScore; save.coins = game.coins;
     
@@ -297,10 +315,8 @@ function jump() {
     burst(particles, player.x + player.size / 2, player.y + player.size, 7, getSelectedSkin().accent, 44);
 }
 
-// UPGRADED FEATURE: Trackers Spawn Logic
 function spawnEnemy(target = enemies, speedBonus = game.enemySpeedBonus, width = canvas.width) {
     const size = 18 + Math.random() * 28, label = 2 + Math.floor(Math.random() * 10);
-    // Tracker Logic: Danger heat or higher, 25% chance
     const isTracker = target === enemies && game.difficultyStage >= 2 && Math.random() < 0.25;
     const color = isTracker ? '#b252ff' : (label >= 8 ? '#ff7b66' : '#ff5454');
     
@@ -326,10 +342,9 @@ function awardDodge(enemy) {
     handleMilestones(); updateHud(); updateChallengeUI();
 }
 
-// UPGRADED FEATURE: Camera Shake on Smash
 function awardPowerJumpBreak(enemy) {
     game.score += enemy.label; game.combo += 3; game.lastSmashValue = enemy.label;
-    game.screenShake = 0.25; // Triggers the impact shake
+    game.screenShake = 0.25; 
     
     triggerCelebration(`+${enemy.label} SMASH`, '#7cf0b6', .78);
     burst(particles, enemy.x + enemy.size / 2, enemy.y + enemy.size / 2, 18, '#fff1b7', 98);
@@ -375,7 +390,6 @@ function update(dt) {
     game.screenShake = Math.max(0, game.screenShake - dt);
     game.celebrationTimer = Math.max(0, game.celebrationTimer - dt);
     
-    // UPGRADED FEATURE: Audio Heartbeat
     game.pulseTimer += dt;
     const pulseInterval = Math.max(.22, .95 - game.difficultyStage * .15 - game.elapsed * .004);
     if (game.pulseTimer >= pulseInterval) {
@@ -410,7 +424,6 @@ function update(dt) {
     enemies = enemies.filter(enemy => {
         enemy.y += enemy.speed * dt;
         
-        // UPGRADED FEATURE: Tracking Movement
         if (enemy.isTracker) {
             const trackSpeed = 70 + game.difficultyStage * 18;
             enemy.x += Math.sign((player.x + player.size / 2) - (enemy.x + enemy.size / 2)) * trackSpeed * dt;
@@ -526,7 +539,6 @@ function drawEnemies(target, list, elapsed, height) {
         target.fillRect(-size / 2, -size / 2, size, size);
         target.fillStyle = 'rgba(255,255,255,.16)'; target.fillRect(-size * .28, -size * .3, size * .18, size * .58);
         
-        // UPGRADED FEATURE: Trackers have a distinct border color
         target.strokeStyle = enemy.isTracker ? '#f2c2ff' : (enemy.label >= 8 ? '#ffe3a8' : '#ffc4b9');
         target.lineWidth = 2; target.strokeRect(-size / 2, -size / 2, size, size);
         
@@ -578,7 +590,6 @@ function render() {
     drawBackground(ctx, canvas.width, canvas.height, game.elapsed, game.flashAlpha);
     
     ctx.save();
-    // UPGRADED FEATURE: Apply the screen shake translation here
     if (game.state === 'running' && game.screenShake > 0) {
         const intensity = game.screenShake * 40;
         ctx.translate((Math.random() - .5) * intensity, (Math.random() - .5) * intensity);
